@@ -275,7 +275,7 @@ export function PacientesPage() {
                              onClick={(e) => {
                                e.stopPropagation()
                                const targetId = patient.numeroDocumento || patient.id
-                               navigate(ROUTES.nuevaConsulta.replace(':id', targetId))
+                               navigate(`/consultas/nueva/${targetId}`)
                              }}
                              className="h-9 w-9 flex items-center justify-center text-clinical-800/40 hover:text-emerald-600 transition-all rounded-xl hover:bg-emerald-50" 
                              title="Nueva Consulta"

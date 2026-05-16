@@ -6,6 +6,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
+  loading?: boolean
 }
 
 export const buttonVariantClasses: Record<ButtonVariant, string> = {
@@ -24,7 +25,7 @@ export function composeButtonClassName(variant: ButtonVariant, className?: strin
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = 'primary', type = 'button', ...props },
+  { className, variant = 'primary', type = 'button', loading, disabled, children, ...props },
   ref,
 ) {
   return (
@@ -32,7 +33,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       className={composeButtonClassName(variant, className)}
+      disabled={disabled || loading}
       {...props}
-    />
+    >
+      {loading ? (
+        <>
+          <span className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-1" />
+          {children}
+        </>
+      ) : (
+        children
+      )}
+    </button>
   )
 })

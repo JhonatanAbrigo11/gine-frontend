@@ -248,9 +248,9 @@ export const RecetaMedicaPage: React.FC = () => {
       // Vertical Divider
       doc.setDrawColor(230)
       doc.setLineWidth(0.3)
-      doc.setLineDash([2, 2])
+      ;(doc as any).setLineDash([2, 2])
       doc.line(midPoint, 10, midPoint, 200)
-      doc.setLineDash([])
+      ;(doc as any).setLineDash([])
 
       // Draw Right Column (Indications)
       drawColumnContent(midPoint + 10, 'indications')

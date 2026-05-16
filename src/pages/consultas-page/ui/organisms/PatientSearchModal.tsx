@@ -89,8 +89,16 @@ export function PatientSearchModal({
   const handleAction = () => {
     if (selectedPatient) {
       const targetId = selectedPatient.numeroDocumento || selectedPatient.id
-      const consecutive = (selectedPatient.consultations?.length || 0) + 1
-      navigate(ROUTES.nuevaConsulta.replace(':id', targetId).replace(':num?', consecutive.toString()))
+      
+      // Si hay una acción personalizada definida, la ejecutamos
+      if (onAction) {
+        onAction(targetId)
+        onClose()
+        return
+      }
+
+      // Comportamiento por defecto (Consultas)
+      navigate(`/consultas/nueva/${targetId}`)
       onClose()
     }
   }
