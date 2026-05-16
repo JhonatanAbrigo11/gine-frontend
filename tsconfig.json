@@ -6,12 +6,10 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
     "strict": false,
     "noImplicitAny": false,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Bundler mode */
