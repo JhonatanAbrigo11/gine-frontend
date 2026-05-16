@@ -10,10 +10,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export const buttonVariantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-teal-sage-600 text-white shadow-soft hover:bg-teal-sage-500 active:bg-teal-sage-700 disabled:opacity-60',
+    'bg-primary-700 text-white shadow-premium hover:bg-primary-600 active:bg-primary-800 disabled:opacity-60',
   secondary:
-    'bg-white text-teal-sage-900 border border-teal-sage-200 hover:border-teal-sage-400 hover:bg-teal-sage-100/60 disabled:opacity-60',
-  ghost: 'bg-transparent text-teal-sage-800 hover:bg-teal-sage-100/80 disabled:opacity-60',
+    'bg-white text-clinical-900 border border-clinical-200 hover:border-primary-300 hover:bg-primary-50/50 disabled:opacity-60',
+  ghost: 'bg-transparent text-primary-900 hover:bg-primary-100/50 disabled:opacity-60',
 }
 
 export const buttonBaseClasses =

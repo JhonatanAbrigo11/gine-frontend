@@ -1,136 +1,224 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { 
+  LayoutDashboard, 
+  Users, 
+  Settings, 
+  LogOut,
+  ChevronRight,
+  CalendarDays,
+  Stethoscope,
+  Baby,
+  Pill,
+  ClipboardList,
+  FileText,
+  Activity,
+  BarChart3
+} from 'lucide-react'
 
 import { useAuth } from '@/features/login/model/auth-context'
 import { useSiteConfig } from '@/features/site-config'
-import { SidebarFigureRow } from '@/features/sidebar/ui/molecules/SidebarFigureRow'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
 import { LogoGlyphSvg } from '@/shared/ui/LogoGlyphSvg'
 
-const EXPANDED_W = 'min(18rem, 84vw)'
-export const SIDEBAR_COLLAPSED_WIDTH = '4rem'
+const EXPANDED_W = 'min(16rem, 84vw)'
+export const SIDEBAR_COLLAPSED_WIDTH = '5rem'
 
 type AppSidebarProps = {
   expanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export function AppSidebar({ expanded: expandedProp, onExpandedChange }: AppSidebarProps = {}) {
-  const { user } = useAuth()
+export function AppSidebar({ 
+  expanded: expandedProp, 
+  onExpandedChange,
+  mobileOpen,
+  onMobileClose
+}: AppSidebarProps = {}) {
+  const { user, logout } = useAuth()
   const { config } = useSiteConfig()
-  const [internalExpanded, setInternalExpanded] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   const isControlled = expandedProp !== undefined
-  const expanded = isControlled ? expandedProp : internalExpanded
+  const expanded = isControlled ? expandedProp : isHovered
 
-  const setExpanded = (next: boolean) => {
-    if (!isControlled) {
-      setInternalExpanded(next)
-    }
-    onExpandedChange?.(next)
+  const handleMouseEnter = () => {
+    if (!isControlled) setIsHovered(true)
+    onExpandedChange?.(true)
   }
 
-  const toggle = () => setExpanded(!expanded)
+  const handleMouseLeave = () => {
+    if (!isControlled) setIsHovered(false)
+    onExpandedChange?.(false)
+  }
+
+  // ... (navItems array stays same)
+  const navItems = [
+    {
+      label: 'Dashboard',
+      to: ROUTES.dashboard,
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      label: 'Pacientes',
+      to: ROUTES.pacientes,
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      label: 'Agenda / Citas',
+      to: ROUTES.agenda,
+      icon: <CalendarDays className="h-5 w-5" />,
+    },
+    {
+      label: 'Consultas',
+      to: ROUTES.consultas,
+      icon: <Stethoscope className="h-5 w-5" />,
+    },
+    {
+      label: 'Control Obstétrico',
+      to: ROUTES.controlObstetrico,
+      icon: <Baby className="h-5 w-5" />,
+    },
+    {
+      label: 'Recetas',
+      to: ROUTES.recetas,
+      icon: <Pill className="h-5 w-5" />,
+    },
+    {
+      label: 'Órdenes / Exámenes',
+      to: ROUTES.ordenes,
+      icon: <ClipboardList className="h-5 w-5" />,
+    },
+    {
+      label: 'Configuración',
+      to: ROUTES.configuracion,
+      icon: <Settings className="h-5 w-5" />,
+    },
+  ]
 
   return (
-    <aside
-      style={expanded ? { width: EXPANDED_W } : { width: SIDEBAR_COLLAPSED_WIDTH }}
-      className={cn(
-        'fixed left-0 top-0 z-40 flex h-dvh flex-col border-r border-rose-dawn-200/70 bg-gradient-to-b from-rose-dawn-100 via-white to-teal-sage-100 shadow-soft transition-[width] duration-300 ease-out',
-        expanded ? 'overflow-hidden px-5 py-8' : 'overflow-hidden px-1.5 py-6',
-      )}
-      aria-label="Navegación principal"
-    >
-      {expanded ? (
-        <>
-          <button
-            type="button"
-            onClick={toggle}
-            className="flex w-full shrink-0 items-center gap-3 rounded-xl p-1 text-left transition hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-sage-400"
-            aria-expanded={true}
-            aria-controls="sidebar-panel"
-            title="Ocultar panel y mostrar solo el título"
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-teal-sage-800 shadow-md ring-1 ring-rose-dawn-200/80">
+    <>
+      {/* Mobile Backdrop */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-clinical-900/40 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300",
+          mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onMobileClose}
+      />
+
+      <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{ 
+          width: expanded ? EXPANDED_W : SIDEBAR_COLLAPSED_WIDTH 
+        } as any}
+        className={cn(
+          'fixed top-0 bottom-0 left-0 z-40 flex h-dvh flex-col border-r border-clinical-200 bg-clinical-50 transition-all duration-300 ease-in-out',
+          // Desktop behavior
+          'hidden lg:flex',
+          // Mobile behavior
+          mobileOpen ? 'flex translate-x-0 w-[min(16rem,84vw)] px-4' : '-translate-x-full lg:translate-x-0 px-3',
+          expanded ? 'px-4' : 'px-3',
+        )}
+        aria-label="Navegación principal"
+      >
+        {/* Header / Logo */}
+        <div className="flex h-20 items-center overflow-hidden py-4">
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-lg shadow-primary-200">
               {config.logoUrl ? (
-                <img src={config.logoUrl} alt="" className="h-full w-full object-cover" />
+                <img src={config.logoUrl} alt="" className="h-full w-full object-cover rounded-2xl" />
               ) : (
-                <LogoGlyphSvg className="h-6 w-6" />
+                <LogoGlyphSvg className="h-7 w-7" />
               )}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-lg font-semibold text-slate-care-900">{config.brandName}</p>
-              <p className="text-xs text-slate-care-600">{config.brandTagline}</p>
             </div>
-            <span className="sr-only">Contraer barra lateral</span>
-            <svg
-              className="h-5 w-5 shrink-0 text-teal-sage-700"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              aria-hidden
+            <div
+              className={cn(
+                'min-w-0 transition-opacity duration-300',
+                (expanded || mobileOpen) ? 'opacity-100' : 'pointer-events-none opacity-0',
+              )}
             >
-              <path strokeWidth="2" strokeLinecap="round" d="M15 6l-6 6 6 6" />
-            </svg>
-          </button>
-
-          <div id="sidebar-panel" className="flex min-h-0 flex-1 flex-col">
-            <div className="mt-6 shrink-0 rounded-2xl bg-white/80 p-4 ring-1 ring-teal-sage-200/60">
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal-sage-800">
-                Sesión activa
+              <p className="whitespace-nowrap font-display text-lg font-bold text-clinical-900 tracking-tight">
+                {config.brandName || 'GineCare'}
               </p>
-              <p className="mt-2 truncate text-sm font-medium text-slate-care-900">
-                {user?.email ?? 'Invitada'}
+              <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-clinical-800/40">
+                {config.brandTagline || 'V 1.0'}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-care-600">
-                Personaliza marca, textos e imágenes de la landing en Configuración.
-              </p>
-            </div>
-
-            <nav className="mt-4 shrink-0" aria-label="Secciones de la aplicación">
-              <NavLink
-                to={ROUTES.configuracion}
-                className={({ isActive }) =>
-                  cn(
-                    'block rounded-xl px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-sage-400 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
-                    isActive
-                      ? 'bg-teal-sage-200/90 text-teal-sage-950 shadow-sm'
-                      : 'text-teal-sage-900 hover:bg-white/70',
-                  )
-                }
-              >
-                Configuración
-              </NavLink>
-            </nav>
-
-            <div className="mt-auto shrink-0 pt-4">
-              <SidebarFigureRow />
             </div>
           </div>
-        </>
-      ) : (
-        <button
-          type="button"
-          onClick={toggle}
-          className="flex h-full min-h-0 w-full flex-col items-center gap-3 rounded-xl py-4 text-center transition hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-sage-400"
-          aria-expanded={false}
-          aria-controls="sidebar-panel"
-          title="Abrir panel lateral"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-teal-sage-800 shadow ring-1 ring-rose-dawn-200/80">
-            {config.logoUrl ? (
-              <img src={config.logoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <LogoGlyphSvg className="h-5 w-5" />
+        </div>
+
+        {/* Navigation */}
+        <nav className="mt-8 flex flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden py-2 no-scrollbar">
+          <div className={cn("px-4 mb-2 transition-opacity duration-200", (expanded || mobileOpen) ? "opacity-100" : "opacity-0 h-0 overflow-hidden")}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-clinical-800/30">Menú de Gestión</span>
+          </div>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onMobileClose}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center gap-4 rounded-2xl p-3.5 text-sm font-bold transition-all duration-200',
+                  isActive
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
+                    : 'text-clinical-800/60 hover:bg-white hover:text-primary-700 hover:shadow-sm',
+                )
+              }
+            >
+              <span className="shrink-0">{item.icon}</span>
+              <div className="flex flex-1 items-center justify-between overflow-hidden">
+                <span
+                  className={cn(
+                    'whitespace-nowrap transition-all duration-300',
+                    (expanded || mobileOpen) ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0',
+                  )}
+                >
+                  {item.label}
+                </span>
+                {(expanded || mobileOpen) && (
+                  <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+                )}
+              </div>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer / User */}
+        <div className="mt-auto border-t border-clinical-100 py-6">
+          <div className="flex items-center gap-3 overflow-hidden rounded-2xl p-2 transition-colors hover:bg-clinical-50">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 text-accent-700 font-bold border border-white">
+              {user?.email?.[0].toUpperCase() || 'U'}
+            </div>
+            <div
+              className={cn(
+                'min-w-0 flex-1 transition-all duration-300',
+                (expanded || mobileOpen) ? 'opacity-100' : 'opacity-0 pointer-events-none w-0',
+              )}
+            >
+              <p className="truncate text-sm font-bold text-clinical-900 leading-none mb-1">
+                {user?.email?.split('@')[0] || 'Usuario'}
+              </p>
+              <p className="truncate text-[11px] font-medium text-clinical-800/40">{user?.email || 'email@example.com'}</p>
+            </div>
+            {(expanded || mobileOpen) && (
+              <button
+                onClick={() => logout()}
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-clinical-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                title="Cerrar sesión"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             )}
-          </span>
-          <span className="font-display max-h-[60vh] text-xs font-semibold leading-snug tracking-wide text-slate-care-900 [overflow-wrap:anywhere] [writing-mode:vertical-rl] rotate-180">
-            {config.brandName}
-          </span>
-          <span className="sr-only">Expandir barra lateral</span>
-        </button>
-      )}
-    </aside>
+          </div>
+        </div>
+      </aside>
+    </>
   )
 }
+

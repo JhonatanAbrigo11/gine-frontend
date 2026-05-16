@@ -25,7 +25,7 @@ export function EmailField({
   const describedBy = error ? `${id}-error` : helper ? `${id}-helper` : undefined
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <LoginLabel htmlFor={id}>{label}</LoginLabel>
       <LoginInput
         id={id}
@@ -40,12 +40,12 @@ export function EmailField({
         aria-describedby={describedBy}
       />
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-rose-dawn-600" role="alert">
+        <p id={`${id}-error`} className="text-[11px] font-bold text-accent-500 px-1 mt-1" role="alert">
           {error}
         </p>
       ) : null}
       {helper && !error ? (
-        <p id={`${id}-helper`} className="text-xs text-slate-care-600">
+        <p id={`${id}-helper`} className="text-[11px] font-medium text-clinical-800/40 px-1 mt-1">
           {helper}
         </p>
       ) : null}

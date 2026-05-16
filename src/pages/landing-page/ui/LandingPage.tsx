@@ -1,146 +1,227 @@
 import { Link } from 'react-router-dom'
-
+import { motion } from 'framer-motion'
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import { ROUTES } from '@/shared/config/routes'
 import { composeButtonClassName } from '@/widgets/button'
 import { Card } from '@/widgets/card'
 import { PageHeader } from '@/widgets/header'
+import { 
+  Stethoscope, 
+  ShieldCheck, 
+  CalendarDays, 
+  ArrowRight,
+  Sparkles,
+  Heart
+} from 'lucide-react'
 
-function IconStethoscope() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-      <path
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        d="M6.5 8.5V7a4 4 0 0 1 4-4h.2a4 4 0 0 1 3.8 2.7"
-      />
-      <path strokeWidth="1.7" strokeLinecap="round" d="M6.5 8.5a2.5 2.5 0 1 0 0 5M17.5 10.5v5a3 3 0 0 1-3 3h-.5" />
-      <path strokeWidth="1.7" strokeLinecap="round" d="M14 18.5h2.5a2 2 0 0 0 2-2V12" />
-    </svg>
-  )
+const serviceIcons = [
+  <Stethoscope key="a" className="h-6 w-6" />, 
+  <ShieldCheck key="b" className="h-6 w-6" />, 
+  <CalendarDays key="c" className="h-6 w-6" />
+]
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15
+    }
+  }
 }
 
-function IconShield() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-      <path
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 3 5 6v5c0 5 3.5 9 7 10 3.5-1 7-5 7-10V6l-7-3Z"
-      />
-    </svg>
-  )
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+  }
 }
-
-function IconCalendar() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-      <path
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        d="M8 6.5V4m8 2.5V4M5.5 9h13M7 20h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"
-      />
-    </svg>
-  )
-}
-
-const serviceIcons = [<IconStethoscope key="a" />, <IconShield key="b" />, <IconCalendar key="c" />]
 
 export function LandingPage() {
   const { config } = useSiteConfig()
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col bg-clinical-50 selection:bg-primary-100 selection:text-primary-900">
       <PageHeader />
 
-      <main id="contenido-principal">
-        <section className="relative overflow-hidden border-b border-rose-dawn-200/60 bg-gradient-to-br from-white via-rose-dawn-50 to-teal-sage-100">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-8 lg:grid-cols-2 lg:items-center lg:py-16">
-            <div className="space-y-6">
-              <p className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-1 text-xs font-semibold text-teal-sage-800 ring-1 ring-teal-sage-200">
-                <span className="h-2 w-2 rounded-full bg-teal-sage-500" aria-hidden />
-                {config.heroBadge}
-              </p>
-              <h1 className="font-display text-4xl font-semibold leading-tight text-slate-care-900 sm:text-5xl">
-                {config.heroTitle}
-              </h1>
-              <p className="max-w-xl text-lg leading-relaxed text-slate-care-600">{config.heroDescription}</p>
-              <div className="flex flex-wrap gap-3">
+      <main id="contenido-principal" className="flex-grow">
+        <section className="relative overflow-hidden pt-16 pb-24 lg:pt-24 lg:pb-32">
+          {/* Decorative background elements */}
+          <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-200/20 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-[-5%] left-[-5%] w-[30%] h-[30%] bg-accent-200/20 blur-[100px] rounded-full pointer-events-none" />
+          
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="mx-auto grid max-w-7xl gap-16 px-6 lg:grid-cols-2 lg:items-center"
+          >
+            <div className="space-y-8 relative z-10">
+              <motion.div variants={fadeUp} className="inline-flex items-center gap-2 rounded-full bg-white/80 px-5 py-1.5 text-xs font-bold text-primary-700 ring-1 ring-primary-100 shadow-sm backdrop-blur-sm">
+                <Sparkles className="h-3 w-3 text-accent-400" aria-hidden />
+                <span className="uppercase tracking-widest">{config.heroBadge}</span>
+              </motion.div>
+              
+              <motion.h1 variants={fadeUp} className="font-display text-5xl font-bold leading-[1.1] text-clinical-900 sm:text-7xl tracking-tight">
+                {config.heroTitle.split(' ').map((word, i) => (
+                  <span key={i} className={i === 1 ? "text-primary-700 block" : ""}>
+                    {word}{' '}
+                  </span>
+                ))}
+              </motion.h1>
+              
+              <motion.p variants={fadeUp} className="max-w-xl text-lg leading-relaxed text-clinical-800/70 font-medium">
+                {config.heroDescription}
+              </motion.p>
+              
+              <motion.div variants={fadeUp} className="flex flex-wrap gap-4">
                 <Link
                   to={ROUTES.login}
-                  className={composeButtonClassName('primary', 'px-6 no-underline')}
+                  className={composeButtonClassName('primary', 'px-8 h-14 text-base shadow-xl shadow-primary-200 group no-underline')}
                 >
                   Iniciar sesión
+                  <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <a
                   href="#servicios"
-                  className={composeButtonClassName('secondary', 'px-6 no-underline')}
+                  className={composeButtonClassName('secondary', 'px-8 h-14 text-base no-underline')}
                 >
-                  Ver servicios
+                  Nuestros servicios
                 </a>
-              </div>
+              </motion.div>
+
+              <motion.div variants={fadeUp} className="flex items-center gap-6 pt-4 border-t border-primary-100/50 w-fit">
+                <div className="flex -space-x-3">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-10 w-10 rounded-full border-2 border-white bg-primary-50 overflow-hidden shadow-sm">
+                       <img src={`https://i.pravatar.cc/150?u=${i}`} alt="User" />
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs font-bold text-clinical-800/50 uppercase tracking-wider">
+                  <span className="text-primary-700">+500</span> pacientes confían en nosotros
+                </div>
+              </motion.div>
             </div>
 
-            <div className="relative">
-              <div className="absolute -left-6 -top-6 h-24 w-24 rounded-full bg-rose-dawn-200/70 blur-2xl" aria-hidden />
-              <div className="absolute -bottom-10 -right-8 h-36 w-36 rounded-full bg-teal-sage-200/70 blur-3xl" aria-hidden />
-              <figure className="relative overflow-hidden rounded-3xl shadow-soft ring-1 ring-rose-dawn-200/80">
+            <motion.div 
+              variants={fadeUp}
+              className="relative lg:ml-auto"
+            >
+              <div className="relative z-10 overflow-hidden rounded-[3rem] shadow-2xl shadow-primary-900/10 ring-1 ring-white/50">
                 <img
                   src={config.heroImageUrl}
                   alt={config.heroImageAlt}
-                  className="aspect-[4/3] w-full object-cover sm:aspect-[5/4]"
+                  className="aspect-[4/5] w-full object-cover lg:aspect-square"
                   width={1200}
                   height={900}
                   loading="eager"
-                  decoding="async"
                 />
-                <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-care-900/80 to-transparent p-4 text-sm text-white">
-                  {config.heroCaption}
-                </figcaption>
-              </figure>
-            </div>
-          </div>
+                <div className="absolute inset-0 bg-primary-900/40 opacity-40" />
+                <div className="absolute bottom-8 left-8 right-8 p-6 glass-card rounded-2xl border-white/20">
+                   <div className="flex items-center gap-3 mb-2">
+                      <div className="h-8 w-8 rounded-full bg-accent-100 flex items-center justify-center text-accent-600">
+                         <Heart className="h-4 w-4 fill-current" />
+                      </div>
+                      <p className="text-sm font-bold text-clinical-900">Atención Personalizada</p>
+                   </div>
+                   <p className="text-xs text-clinical-800/70 font-medium">
+                     {config.heroCaption}
+                   </p>
+                </div>
+              </div>
+              
+              {/* Floating element */}
+              <motion.div 
+                animate={{ y: [0, -20, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -right-8 -top-8 z-20 glass-card p-5 rounded-2xl border-white/40 hidden xl:block"
+              >
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-primary-600 flex items-center justify-center text-white shadow-lg">
+                       <CalendarDays className="h-6 w-6" />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-black uppercase tracking-tighter text-primary-400">Próxima Disponibilidad</p>
+                       <p className="text-sm font-bold text-clinical-900">Hoy, 4:30 PM</p>
+                    </div>
+                 </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         </section>
 
-        <section id="servicios" className="mx-auto max-w-6xl px-4 py-16 sm:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-semibold text-slate-care-900">{config.servicesTitle}</h2>
-            <p className="mt-3 text-slate-care-600">{config.servicesSubtitle}</p>
+        <section id="servicios" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative">
+          <div className="mx-auto max-w-2xl text-center mb-20">
+            <h2 className="font-display text-4xl font-bold tracking-tight text-clinical-900 sm:text-5xl mb-6">
+              {config.servicesTitle}
+            </h2>
+            <div className="h-1.5 w-24 bg-accent-300 mx-auto rounded-full mb-6" />
+            <p className="text-lg font-medium text-clinical-800/60 leading-relaxed">
+              {config.servicesSubtitle}
+            </p>
           </div>
 
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <Card
+              <motion.div
                 key={i}
-                title={config.serviceCards[i].title}
-                description={config.serviceCards[i].description}
-                icon={serviceIcons[i]}
-              />
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card
+                  title={config.serviceCards[i].title}
+                  description={config.serviceCards[i].description}
+                  icon={serviceIcons[i]}
+                  className="h-full"
+                />
+              </motion.div>
             ))}
           </div>
         </section>
 
-        <section className="border-t border-rose-dawn-200/70 bg-white/70 py-14">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 sm:flex-row sm:items-center sm:px-8">
-            <div>
-              <h2 className="font-display text-2xl font-semibold text-slate-care-900">{config.ctaTitle}</h2>
-              <p className="mt-2 max-w-xl text-slate-care-600">{config.ctaDescription}</p>
+        <section className="mx-auto max-w-7xl px-6 pb-24">
+          <div className="relative overflow-hidden rounded-[3rem] bg-clinical-900 p-12 lg:p-20 shadow-2xl">
+            <div className="absolute top-0 right-0 w-[40%] h-full bg-primary-600/10 pointer-events-none" />
+            <div className="relative z-10 max-w-3xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-5xl mb-6">
+                {config.ctaTitle}
+              </h2>
+              <p className="text-lg font-medium text-primary-100/70 mb-10 leading-relaxed">
+                {config.ctaDescription}
+              </p>
+              <Link
+                to={ROUTES.login}
+                className={composeButtonClassName('primary', 'px-10 h-14 text-base bg-white text-primary-900 hover:bg-primary-50 no-underline')}
+              >
+                Entrar al panel médico
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Link>
             </div>
-            <Link
-              to={ROUTES.login}
-              className={composeButtonClassName('primary', 'shrink-0 px-7 no-underline')}
-            >
-              Entrar al panel
-            </Link>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-rose-dawn-200/70 bg-white/80 py-8 text-center text-sm text-slate-care-600">
-        <p>
-          © {new Date().getFullYear()} {config.footerNotice}
-        </p>
+      <footer className="border-t border-primary-100/30 bg-white py-12">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+           <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center text-white text-xs font-bold">
+                 G
+              </div>
+              <span className="font-display text-lg font-bold text-clinical-900">{config.brandName}</span>
+           </div>
+           <p className="text-sm font-medium text-clinical-800/40">
+             © {new Date().getFullYear()} {config.footerNotice} — Todos los derechos reservados.
+           </p>
+           <div className="flex gap-6 text-xs font-bold uppercase tracking-widest text-primary-700/60">
+              <a href="#" className="hover:text-primary-700 transition-colors">Privacidad</a>
+              <a href="#" className="hover:text-primary-700 transition-colors">Términos</a>
+           </div>
+        </div>
       </footer>
     </div>
   )

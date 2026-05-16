@@ -44,16 +44,16 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        'flex items-center justify-between gap-4 border-b border-rose-dawn-200/60 bg-white/70 px-4 py-4 backdrop-blur-md sm:px-8',
+        'sticky top-0 z-[100] flex items-center justify-between gap-4 border-b border-primary-100/30 bg-white/60 px-6 py-4 backdrop-blur-xl sm:px-10',
         className,
       )}
     >
       <Link
         to={logoHref}
-        className="group/logo flex items-center gap-3 rounded-lg focus-visible:outline-none"
+        className="group/logo flex items-center gap-4 rounded-xl focus-visible:outline-none"
       >
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-rose-dawn-200 to-teal-sage-200 text-teal-sage-900 shadow-sm"
+          className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-600 text-white shadow-lg shadow-primary-200/50 transition-transform group-hover/logo:scale-110"
           aria-hidden
         >
           {config.logoUrl ? (
@@ -67,52 +67,55 @@ export function PageHeader({
           )}
         </span>
         <div className="leading-tight">
-          <p className="font-display text-base font-semibold text-slate-care-900">{config.brandName}</p>
-          <p className="text-xs text-slate-care-600">{config.brandTagline}</p>
+          <p className="font-display text-lg font-bold text-clinical-900 tracking-tight group-hover/logo:text-primary-700 transition-colors">
+            {config.brandName}
+          </p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-clinical-800/40">
+            {config.brandTagline}
+          </p>
         </div>
       </Link>
 
       {showAuthActions ? (
         <div className="relative inline-block text-left">
-          {/* Grupo: el panel sigue visible al mover el cursor del botón al enlace */}
           <div className="group relative">
             <button
               type="button"
               className={cn(
-                'inline-flex h-11 w-11 items-center justify-center rounded-full border border-teal-sage-200 bg-white text-teal-sage-900 shadow-sm transition',
-                'hover:border-teal-sage-400 hover:bg-teal-sage-100/60',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-sage-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+                'inline-flex h-11 px-4 items-center justify-center gap-2 rounded-2xl border border-primary-100 bg-white text-primary-700 shadow-sm transition-all',
+                'hover:border-primary-300 hover:bg-primary-50 hover:shadow-premium',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
               )}
               aria-haspopup="menu"
-              aria-label="Acceso: al pasar el cursor o usar el teclado, elige iniciar sesión"
             >
-              <UserAccountIcon className="h-5 w-5" />
+              <UserAccountIcon className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">{loginLabel}</span>
             </button>
 
-            {/* Cerrado: max-w-0 recorta el texto para que no asome a la izquierda del ícono */}
             <div
               className={cn(
-                'pointer-events-none absolute right-0 top-full z-50 flex justify-end pt-2',
-                'max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity,transform] duration-300 ease-out',
-                'translate-x-2',
-                'group-hover:pointer-events-auto group-hover:max-w-[15rem] group-hover:translate-x-0 group-hover:opacity-100',
-                'group-focus-within:pointer-events-auto group-focus-within:max-w-[15rem] group-focus-within:translate-x-0 group-focus-within:opacity-100',
+                'pointer-events-none absolute right-0 top-full z-50 flex justify-end pt-3',
+                'max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out',
+                'translate-y-2',
+                'group-hover:pointer-events-auto group-hover:max-w-[20rem] group-hover:translate-y-0 group-hover:opacity-100',
               )}
             >
               <div
-                className="min-w-[13.5rem] shrink-0 overflow-hidden rounded-2xl border border-teal-sage-200/80 bg-white shadow-soft ring-1 ring-rose-dawn-200/50"
+                className="min-w-[14rem] overflow-hidden rounded-2xl border border-primary-100 bg-white shadow-premium ring-1 ring-primary-500/10"
                 role="menu"
-                aria-label="Opciones de acceso"
               >
                 <Link
                   role="menuitem"
                   to={loginTo}
                   className={cn(
-                    'block w-full px-4 py-3.5 text-sm font-semibold text-teal-sage-900 no-underline transition',
-                    'hover:bg-teal-sage-100/80 focus-visible:bg-teal-sage-100/80 focus-visible:outline-none',
+                    'flex items-center gap-3 w-full px-5 py-4 text-sm font-bold text-clinical-900 no-underline transition',
+                    'hover:bg-primary-50 hover:text-primary-700 focus-visible:bg-primary-50 focus-visible:outline-none',
                   )}
                 >
-                  {loginLabel}
+                  <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary-100 text-primary-700">
+                    <UserAccountIcon className="h-4 w-4" />
+                  </div>
+                  Acceso Personal
                 </Link>
               </div>
             </div>

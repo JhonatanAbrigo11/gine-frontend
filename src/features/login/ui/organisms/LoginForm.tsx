@@ -29,26 +29,37 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-3xl border border-rose-dawn-200/80 bg-white/90 p-8 shadow-soft backdrop-blur-md"
+      className="space-y-8 glass-card rounded-[2.5rem] p-10 border-white/20 shadow-2xl"
       noValidate
     >
-      <header className="space-y-2">
-        <p className="font-display text-2xl font-semibold text-slate-care-900">Bienvenida de nuevo</p>
-        <p className="text-sm text-slate-care-600">
-          Usa cualquier correo para acceder al panel. Esta es una demo sin backend.
+      <header className="space-y-3">
+        <div className="flex items-center gap-2 mb-4">
+           <div className="h-1 w-12 bg-accent-400 rounded-full" />
+           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-400">Acceso Seguro</span>
+        </div>
+        <h2 className="font-display text-4xl font-bold text-clinical-900 tracking-tight">
+          Bienvenida <span className="text-primary-700">de nuevo</span>
+        </h2>
+        <p className="text-sm font-medium text-clinical-800/50 leading-relaxed">
+          Acceda a su panel de gestión clínica personalizada.
         </p>
       </header>
 
-      <EmailField
-        id="login-email"
-        label="Correo electrónico"
-        value={email}
-        onChange={setEmail}
-        error={error ?? undefined}
-      />
+      <div className="space-y-2">
+        <EmailField
+          id="login-email"
+          label="Correo Institucional"
+          value={email}
+          onChange={setEmail}
+          error={error ?? undefined}
+        />
+        <p className="text-[10px] text-clinical-800/40 italic px-1">
+          * Demo: ingrese cualquier correo electrónico para continuar.
+        </p>
+      </div>
 
-      <Button type="submit" className="w-full" variant="primary">
-        Iniciar sesión
+      <Button type="submit" className="w-full h-14 text-base shadow-xl shadow-primary-200" variant="primary">
+        Entrar al Sistema
       </Button>
     </form>
   )

@@ -1,30 +1,58 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+
+/* 
+  High-end Typography Imports 
+  Display: Outfit (Geometric & Modern)
+  Body: Plus Jakarta Sans (Clean & Clinical)
+*/
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-display: 'Outfit', sans-serif;
 
-  --color-rose-dawn-50: #fff8f8;
-  --color-rose-dawn-100: #ffeef0;
-  --color-rose-dawn-200: #ffd6dc;
-  --color-rose-dawn-300: #ffb3bf;
-  --color-rose-dawn-500: #e8879a;
-  --color-rose-dawn-600: #c4516d;
-  --color-rose-dawn-800: #7c2d3f;
+  /* Professional Gynecology Palette */
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #e0effe;
+  --color-primary-200: #bae0fd;
+  --color-primary-300: #7cc7fb;
+  --color-primary-400: #38a9f8;
+  --color-primary-500: #0e8ce4;
+  --color-primary-600: #026fc7;
+  --color-primary-700: #0359a1;
+  --color-primary-800: #074b85;
+  --color-primary-900: #0c406e;
+  --color-primary-950: #082849;
 
-  --color-teal-sage-100: #e8f6f4;
-  --color-teal-sage-200: #c5eae4;
-  --color-teal-sage-400: #5eb8aa;
-  --color-teal-sage-500: #3d9b8c;
-  --color-teal-sage-600: #2f7f73;
-  --color-teal-sage-900: #184540;
+  --color-clinical-50: #f8fafc;
+  --color-clinical-100: #f1f5f9;
+  --color-clinical-200: #e2e8f0;
+  --color-clinical-300: #cbd5e1;
+  --color-clinical-400: #94a3b8;
+  --color-clinical-500: #64748b;
+  --color-clinical-600: #475569;
+  --color-clinical-700: #334155;
+  --color-clinical-800: #1e293b;
+  --color-clinical-900: #0f172a;
+  --color-clinical-950: #020617;
 
-  --color-slate-care-600: #475569;
-  --color-slate-care-800: #1e293b;
-  --color-slate-care-900: #0f172a;
+  --color-accent-50: #fff1f2;
+  --color-accent-100: #ffe4e6;
+  --color-accent-200: #fecdd3;
+  --color-accent-300: #fda4af;
+  --color-accent-400: #fb7185;
+  --color-accent-500: #f43f5e;
+  --color-accent-600: #e11d48;
+  --color-accent-700: #be123c;
+  --color-accent-800: #9f1239;
+  --color-accent-900: #881337;
+  --color-accent-950: #4c0519;
 
-  --shadow-soft: 0 20px 60px -24px rgb(15 23 42 / 0.18);
-  --radius-card: 1.25rem;
+  --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glass: 0 8px 32px 0 rgba(109, 40, 217, 0.08);
+  
+  --radius-card: 1rem;
+  --radius-button: 0.5rem;
 }
 
 @layer base {
@@ -33,10 +61,38 @@
   }
 
   body {
-    @apply min-h-dvh bg-rose-dawn-50 text-slate-care-800 font-sans;
+    @apply min-h-dvh bg-clinical-50 text-clinical-800 font-sans selection:bg-primary-100 selection:text-primary-900;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    @apply font-display tracking-tight;
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-teal-sage-500;
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-glass;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-primary-200/50 rounded-full hover:bg-primary-300/50 transition-colors;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

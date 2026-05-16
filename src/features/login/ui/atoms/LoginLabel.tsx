@@ -7,7 +7,7 @@ type LoginLabelProps = ComponentProps<'label'>
 export function LoginLabel({ className, ...props }: LoginLabelProps) {
   return (
     <label
-      className={cn('text-sm font-medium text-slate-care-800', className)}
+      className={cn('block text-xs font-bold uppercase tracking-widest text-clinical-900/60 mb-2 px-1', className)}
       {...props}
     />
   )
