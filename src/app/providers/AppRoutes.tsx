@@ -40,7 +40,6 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to={ROUTES.dashboard} replace />} />
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         
         {/* Specific Route first */}

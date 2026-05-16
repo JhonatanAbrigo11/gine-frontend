@@ -7,7 +7,10 @@ type SettingsLabelProps = ComponentProps<'label'>
 export function SettingsLabel({ className, ...props }: SettingsLabelProps) {
   return (
     <label
-      className={cn('block text-xs font-semibold uppercase tracking-wide text-teal-sage-900', className)}
+      className={cn(
+        'block px-1 text-xs font-bold uppercase tracking-widest text-clinical-900/60',
+        className,
+      )}
       {...props}
     />
   )

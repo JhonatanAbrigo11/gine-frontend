@@ -8,57 +8,59 @@ export function SiteConfigLivePreview() {
 
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-teal-sage-300/70 bg-gradient-to-b from-white to-rose-dawn-100/80 shadow-inner ring-1 ring-rose-dawn-200/60"
+      className="overflow-hidden rounded-[2rem] border border-clinical-100 bg-white shadow-xl shadow-clinical-900/5"
       aria-live="polite"
       aria-label="Vista previa en tiempo real de los cambios"
     >
-      <div className="flex items-center gap-1.5 border-b border-rose-dawn-200/80 bg-white/90 px-2 py-1.5">
-        <span className="h-2 w-2 rounded-full bg-rose-dawn-400" aria-hidden />
-        <span className="h-2 w-2 rounded-full bg-amber-200" aria-hidden />
-        <span className="h-2 w-2 rounded-full bg-teal-sage-300" aria-hidden />
-        <span className="ml-auto text-[10px] font-medium text-slate-care-600">Vista previa</span>
+      <div className="flex items-center gap-1.5 border-b border-clinical-100 bg-clinical-50/80 px-4 py-3">
+        <span className="h-2 w-2 rounded-full bg-accent-400" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-amber-300" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-primary-400" aria-hidden />
+        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-clinical-400">
+          Vista previa
+        </span>
       </div>
 
-      <div className="space-y-2 p-2">
-        <div className="flex items-center gap-2 rounded-xl border border-rose-dawn-200/60 bg-white/90 px-2 py-1.5">
+      <div className="space-y-3 p-4">
+        <div className="flex items-center gap-3 rounded-2xl bg-clinical-50/80 p-3 ring-1 ring-clinical-100">
           {config.logoUrl ? (
             <img
               src={config.logoUrl}
               alt=""
-              className="h-8 w-8 shrink-0 rounded-lg object-cover shadow-sm"
+              className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm"
             />
           ) : (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-rose-dawn-200 to-teal-sage-200 text-teal-sage-900">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700">
               <LogoGlyphSvg className="h-4 w-4" />
             </span>
           )}
           <div className="min-w-0 leading-tight">
-            <p className="truncate font-display text-xs font-semibold text-slate-care-900">
+            <p className="truncate font-display text-sm font-bold tracking-tight text-clinical-900">
               {config.brandName}
             </p>
-            <p className="truncate text-[10px] text-slate-care-600">{config.brandTagline}</p>
+            <p className="truncate text-xs font-medium text-clinical-600">{config.brandTagline}</p>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl ring-1 ring-rose-dawn-200/70">
-          <div className="aspect-[16/9] w-full bg-rose-dawn-100">
+        <div className="overflow-hidden rounded-2xl ring-1 ring-clinical-100">
+          <div className="aspect-[16/9] w-full bg-primary-50">
             <img
               src={config.heroImageUrl}
               alt={config.heroImageAlt}
               className="h-full w-full object-cover"
             />
           </div>
-          <div className="bg-white/95 px-2 py-1.5">
-            <p className="line-clamp-2 font-display text-[11px] font-semibold leading-snug text-slate-care-900">
+          <div className="bg-white px-3 py-2.5">
+            <p className="line-clamp-2 font-display text-xs font-bold leading-snug tracking-tight text-clinical-900">
               {config.heroTitle}
             </p>
-            <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-slate-care-600">
+            <p className="mt-1 line-clamp-2 text-[11px] font-medium leading-relaxed text-clinical-600">
               {config.heroDescription}
             </p>
           </div>
         </div>
 
-        <p className="line-clamp-1 text-center text-[10px] font-medium text-teal-sage-800">
+        <p className="line-clamp-1 text-center text-[10px] font-bold uppercase tracking-widest text-primary-600/80">
           {config.servicesTitle}
         </p>
       </div>

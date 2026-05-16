@@ -10,7 +10,8 @@ import {
 import { DEFAULT_SITE_CONFIG } from './default-site-config'
 import type { SiteConfig } from './types'
 
-const STORAGE_KEY = 'gine-site-config'
+/** v2: contenido por defecto de landing renovado (mayo 2026). */
+const STORAGE_KEY = 'gine-site-config-v2'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)

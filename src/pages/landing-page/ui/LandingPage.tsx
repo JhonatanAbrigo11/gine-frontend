@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '@/features/login/model/auth-context'
 import { motion } from 'framer-motion'
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import { ROUTES } from '@/shared/config/routes'
@@ -41,6 +42,11 @@ const fadeUp = {
 
 export function LandingPage() {
   const { config } = useSiteConfig()
+  const { user } = useAuth()
+
+  if (user) {
+    return <Navigate to={ROUTES.dashboard} replace />
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-clinical-50 selection:bg-primary-100 selection:text-primary-900">
@@ -101,7 +107,7 @@ export function LandingPage() {
                   ))}
                 </div>
                 <div className="text-xs font-bold text-clinical-800/50 uppercase tracking-wider">
-                  <span className="text-primary-700">+500</span> pacientes confían en nosotros
+                  <span className="text-primary-700">+500</span> mujeres atendidas al año
                 </div>
               </motion.div>
             </div>
@@ -125,7 +131,7 @@ export function LandingPage() {
                       <div className="h-8 w-8 rounded-full bg-accent-100 flex items-center justify-center text-accent-600">
                          <Heart className="h-4 w-4 fill-current" />
                       </div>
-                      <p className="text-sm font-bold text-clinical-900">Atención Personalizada</p>
+                      <p className="text-sm font-bold text-clinical-900">Consulta con tiempo real</p>
                    </div>
                    <p className="text-xs text-clinical-800/70 font-medium">
                      {config.heroCaption}
@@ -144,8 +150,8 @@ export function LandingPage() {
                        <CalendarDays className="h-6 w-6" />
                     </div>
                     <div>
-                       <p className="text-[10px] font-black uppercase tracking-tighter text-primary-400">Próxima Disponibilidad</p>
-                       <p className="text-sm font-bold text-clinical-900">Hoy, 4:30 PM</p>
+                       <p className="text-[10px] font-black uppercase tracking-tighter text-primary-400">Cupo disponible</p>
+                       <p className="text-sm font-bold text-clinical-900">Control prenatal · mañana</p>
                     </div>
                  </div>
               </motion.div>

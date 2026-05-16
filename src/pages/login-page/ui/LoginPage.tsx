@@ -1,5 +1,6 @@
 import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+
 import { useAuth } from '@/features/login/model/auth-context'
 import { LoginForm } from '@/features/login/ui/organisms/LoginForm'
 import { ROUTES } from '@/shared/config/routes'
@@ -16,22 +17,21 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-dvh flex flex-col overflow-hidden bg-clinical-900">
-      {/* Background Image with Overlay */}
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-clinical-900">
       <div className="absolute inset-0 z-0">
-        <img 
-          src="/gynecology_login_bg_1778891592661.png" 
-          alt="Clinic Background" 
-          className="w-full h-full object-cover opacity-40"
+        <img
+          src="/gynecology_login_bg_1778891592661.png"
+          alt="Clinic Background"
+          className="h-full w-full object-cover opacity-40"
         />
         <div className="absolute inset-0 bg-clinical-900/60" />
       </div>
 
-      <PageHeader 
-        loginTo={ROUTES.login} 
-        loginLabel="Acceso" 
-        showAuthActions={false} 
-        className="relative z-10 border-transparent bg-transparent backdrop-blur-none shadow-none"
+      <PageHeader
+        loginTo={ROUTES.login}
+        loginLabel="Acceso"
+        showAuthActions={false}
+        className="relative z-10 border-transparent bg-transparent shadow-none backdrop-blur-none"
       />
 
       <main
@@ -44,22 +44,29 @@ export function LoginPage() {
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
           <LoginForm />
-          
-          <div className="mt-8 text-center">
-            <Link
-              to={ROUTES.home}
-              className={cn(
-                composeButtonClassName('ghost', 'px-6 py-3 text-sm no-underline text-white/60 hover:text-white hover:bg-white/10'),
-                "rounded-2xl border border-white/10 backdrop-blur-sm"
-              )}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver al inicio
-            </Link>
-          </div>
         </motion.div>
       </main>
-      
+
+      {/* Fuera del formulario y de motion: navegación SPA fiable hacia la landing */}
+      <nav
+        className="relative z-[100] -mt-2 flex justify-center px-6 pb-8"
+        aria-label="Volver a la página principal"
+      >
+        <Link
+          to={ROUTES.home}
+          className={cn(
+            composeButtonClassName(
+              'ghost',
+              'inline-flex px-6 py-3 text-sm font-semibold text-white/80 no-underline hover:text-white hover:bg-white/10',
+            ),
+            'rounded-2xl border border-white/10 bg-transparent backdrop-blur-sm',
+          )}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+          Volver al inicio
+        </Link>
+      </nav>
+
       <div className="relative z-10 p-8 text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
           Sistema de Gestión Clínica de Alta Especialidad

@@ -9,8 +9,8 @@ export function SettingsTextarea({ className, rows = 3, ...props }: SettingsText
     <textarea
       rows={rows}
       className={cn(
-        'w-full resize-y rounded-xl border border-rose-dawn-300/80 bg-white px-3 py-2 text-sm text-slate-care-900 shadow-sm outline-none transition',
-        'placeholder:text-slate-care-600/60 focus:border-teal-sage-400 focus:ring-2 focus:ring-teal-sage-200',
+        'w-full resize-y rounded-2xl border-none bg-white p-4 text-sm font-medium text-clinical-900 shadow-sm outline-none ring-1 ring-clinical-200 transition-all',
+        'placeholder:text-clinical-400 focus:ring-2 focus:ring-primary-500',
         className,
       )}
       {...props}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import { useAuth } from '@/features/login/model/auth-context'
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
@@ -40,6 +41,7 @@ export function PageHeader({
   loginLabel = 'Iniciar sesión',
 }: PageHeaderProps) {
   const { config } = useSiteConfig()
+  const { user } = useAuth()
 
   return (
     <header
@@ -77,6 +79,31 @@ export function PageHeader({
       </Link>
 
       {showAuthActions ? (
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+          {user ? (
+            <>
+              <Link
+                to={ROUTES.configuracion}
+                className="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-700 transition hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+              >
+                Configuración
+              </Link>
+              <Link
+                to={ROUTES.dashboard}
+                className="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-700 transition hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+              >
+                Panel
+              </Link>
+            </>
+          ) : (
+            <Link
+              to={ROUTES.login}
+              title="Inicia sesión para acceder a la configuración del sitio"
+              className="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-700 transition hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            >
+              Configuración
+            </Link>
+          )}
         <div className="relative inline-block text-left">
           <div className="group relative">
             <button
@@ -120,6 +147,7 @@ export function PageHeader({
               </div>
             </div>
           </div>
+        </div>
         </div>
       ) : null}
     </header>

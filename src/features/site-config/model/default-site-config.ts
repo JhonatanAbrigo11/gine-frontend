@@ -2,42 +2,44 @@ import type { SiteConfig } from './types'
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   brandName: 'GineCare',
-  brandTagline: 'Ginecología humana',
+  brandTagline: 'Ginecología y obstetricia con enfoque humano',
+
   logoUrl: '',
 
   heroImageUrl:
     'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=2000&q=80',
-  heroImageAlt: 'Profesional de la salud en un entorno clínico luminoso y acogedor',
-  heroBadge: 'Ginecología basada en evidencia',
-  heroTitle: 'Cuidado ginecológico cercano, respetuoso y moderno',
+  heroImageAlt: 'Médica ginecóloga conversando con paciente en consultorio luminoso',
+  heroBadge: 'Sin prisas, sin tabúes, con evidencia',
+  heroTitle: 'Salud femenina con calma y ciencia',
   heroDescription:
-    'Acompañamiento en salud femenina: prevención, diagnóstico oportuno y planes personalizados, con un enfoque humano en cada etapa de la vida.',
-  heroCaption: 'Ambientes pensados para tu tranquilidad y privacidad.',
+    'Consulta ginecológica, control prenatal, planificación familiar y tamizajes. Te escuchamos, te explicamos con claridad y armamos un plan contigo — sí, también para esas dudas que Google no debería responder.',
+  heroCaption:
+    'Ambiente acogedor, confidencialidad real y tiempo de consulta para lo que de verdad te preocupa.',
 
-  servicesTitle: 'Nuestros servicios',
+  servicesTitle: '¿En qué te acompañamos?',
   servicesSubtitle:
-    'Un equipo que escucha, explica con claridad y diseña contigo el siguiente paso.',
+    'Prevención, diagnóstico y seguimiento en cada etapa: adolescencia, fertilidad, embarazo y menopausia. Cero lenguaje médico innecesario.',
   serviceCards: [
     {
-      title: 'Consulta ginecológica',
+      title: 'Ginecología general',
       description:
-        'Valoración integral, historia clínica detallada y recomendaciones personalizadas.',
+        'Chequeo anual, citología, ecografía pélvica, infecciones, dolor menstrual y menopausia. Cada estudio con contexto, no solo con resultados en papel.',
     },
     {
-      title: 'Prevención y tamizaje',
+      title: 'Control prenatal',
       description:
-        'Pautas de cribado, vacunación y hábitos saludables adaptados a tu edad y contexto.',
+        'Seguimiento del embarazo, ecografías, laboratorios y plan de parto. Tu barriga avanza; nosotros llevamos el calendario y las alertas tempranas.',
     },
     {
-      title: 'Seguimiento longitudinal',
+      title: 'Planificación y fertilidad',
       description:
-        'Continuidad asistencial con espacio para preguntas, resultados y plan de cuidados.',
+        'Anticoncepción, búsqueda de embarazo, FUM y orientación en pareja. Sin sermones: opciones reales según tu edad, salud y proyectos de vida.',
     },
   ],
 
-  ctaTitle: '¿Lista para agendar o continuar tu proceso?',
+  ctaTitle: '¿Agendamos tu próxima cita?',
   ctaDescription:
-    'Accede al panel para gestionar próximos pasos. En esta demo el acceso es inmediato con tu correo.',
+    'Accede al panel médico de la demo para explorar agenda, pacientes y consultas. En este entorno el acceso es inmediato con tu correo — ideal para probar el flujo clínico.',
 
-  footerNotice: 'GineCare · Demo frontend · Sin datos clínicos reales',
+  footerNotice: 'GineCare · Plataforma demo · No reemplaza atención médica presencial',
 }
