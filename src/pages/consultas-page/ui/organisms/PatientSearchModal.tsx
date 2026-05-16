@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
@@ -22,6 +22,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
+import { ROUTES } from '@/shared/config/routes'
 
 type PatientSearchModalProps = {
   isOpen: boolean
@@ -31,44 +32,10 @@ type PatientSearchModalProps = {
   onAction?: (patientId: string) => void
 }
 
-const MOCK_RESULTS = [
-  {
-    id: '1',
-    name: 'Ana García López',
-    cedula: '1723456789',
-    hc: '2026-001',
-    telefono: '0987654321',
-    edad: 28,
-    risk: 'Bajo',
-    blood: 'O+',
-    fum: '12 Abr',
-    alergias: 'Penicilina, AINES',
-    lastDiag: 'Embarazo normoevolutivo',
-    lastVisit: '10 May 2026',
-    bp: '120/80 mmHg',
-    weight: '64.5 kg',
-    ultrasound: '15 May - Sin hallazgos',
-    meds: ['Ácido Fólico 5mg', 'Hierro Plus']
-  },
-  {
-    id: '2',
-    name: 'Ana María Torres',
-    cedula: '1723456790',
-    hc: '2026-042',
-    telefono: '0987654322',
-    edad: 31,
-    risk: 'Alto',
-    blood: 'A-',
-    fum: '20 Mar',
-    alergias: 'Ninguna conocida',
-    lastDiag: 'Control Prenatal rutinario',
-    lastVisit: '05 May 2026',
-    bp: '130/85 mmHg',
-    weight: '70.2 kg',
-    ultrasound: '02 May - Normal',
-    meds: ['Calcio']
-  },
-]
+
+
+import { pacienteService } from '@/entities/paciente/api/paciente.service'
+import type { Patient } from '@/entities/paciente/model/types'
 
 export function PatientSearchModal({ 
   isOpen, 
@@ -79,29 +46,52 @@ export function PatientSearchModal({
 }: PatientSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  // Cargar pacientes al abrir el modal
+  React.useEffect(() => {
+    const fetchPatients = async () => {
+      if (!isOpen) return
+      try {
+        setLoading(true)
+        const data = await pacienteService.getAll()
+        setPatients(data)
+      } catch (error) {
+        console.error('Error fetching patients:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPatients()
+  }, [isOpen])
 
   const filteredResults = useMemo(() => {
     if (!searchQuery.trim()) return []
-    return MOCK_RESULTS.filter(p =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.cedula.includes(searchQuery) ||
-      p.hc.includes(searchQuery)
+    return patients.filter(p =>
+      `${p.nombres} ${p.apellidos}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.numeroDocumento.includes(searchQuery)
     )
-  }, [searchQuery])
+  }, [searchQuery, patients])
 
   const selectedPatient = useMemo(() =>
-    MOCK_RESULTS.find(p => p.id === selectedId)
-    , [selectedId])
+    patients.find(p => p.id === selectedId)
+    , [selectedId, patients])
+
+  // Extraer datos de la última consulta para el resumen
+  const lastConsultation = useMemo(() => {
+    if (!selectedPatient?.consultations || selectedPatient.consultations.length === 0) return null
+    return selectedPatient.consultations[0] // Ya vienen ordenadas por desc en el backend
+  }, [selectedPatient])
 
   const handleAction = () => {
-    if (selectedId) {
-      if (onAction) {
-        onAction(selectedId)
-      } else {
-        navigate(`/consultas/nueva/${selectedId}`)
-        onClose()
-      }
+    if (selectedPatient) {
+      const targetId = selectedPatient.numeroDocumento || selectedPatient.id
+      const consecutive = (selectedPatient.consultations?.length || 0) + 1
+      navigate(ROUTES.nuevaConsulta.replace(':id', targetId).replace(':num?', consecutive.toString()))
+      onClose()
     }
   }
 
@@ -183,14 +173,14 @@ export function PatientSearchModal({
                             "h-9 w-9 rounded-lg flex items-center justify-center font-bold text-xs shrink-0",
                             selectedId === p.id ? "bg-white/20 text-white" : "bg-primary-100 text-primary-600"
                           )}>
-                            {p.name.charAt(0)}
+                            {p.nombres.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold truncate">{p.name}</p>
+                            <p className="text-xs font-bold truncate">{p.nombres} {p.apellidos}</p>
                             <p className={cn(
                               "text-[9px] font-medium opacity-70",
                               selectedId === p.id ? "text-white" : "text-clinical-500"
-                            )}>HC: {p.hc}</p>
+                            )}>Doc: {p.numeroDocumento}</p>
                           </div>
                         </div>
                         {selectedId === p.id && <UserCheck className="h-4 w-4 shrink-0" />}
@@ -223,19 +213,18 @@ export function PatientSearchModal({
                       {/* Header Compact */}
                       <div className="flex items-center gap-6">
                         <div className="h-20 w-20 rounded-[1.5rem] bg-primary-50 border-2 border-white shadow-lg flex items-center justify-center text-primary-600 text-3xl font-bold ring-1 ring-primary-100 shrink-0">
-                          {selectedPatient.name.charAt(0)}
+                          {selectedPatient.nombres.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-2xl font-bold text-clinical-900 truncate mb-1">{selectedPatient.name}</h3>
+                          <h3 className="text-2xl font-bold text-clinical-900 truncate mb-1">{selectedPatient.nombres} {selectedPatient.apellidos}</h3>
                           <div className="flex flex-wrap gap-2">
                             <span className="px-2 py-0.5 rounded-lg bg-clinical-100 text-clinical-700 text-[10px] font-bold uppercase tracking-wider">
-                              {selectedPatient.edad} Años • HC: {selectedPatient.hc}
+                              HC: 2026-{selectedPatient.id.substring(0,3).toUpperCase()}
                             </span>
                             <span className={cn(
-                              "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                              selectedPatient.risk === 'Alto' ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+                              "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700"
                             )}>
-                              Riesgo {selectedPatient.risk}
+                              Activa
                             </span>
                           </div>
                         </div>
@@ -243,12 +232,12 @@ export function PatientSearchModal({
 
                       {/* Grid Compact */}
                       <div className="grid grid-cols-2 gap-3">
-                        <SummaryCard icon={<AlertCircle className="h-4 w-4 text-rose-500" />} label="Alergias" value={selectedPatient.alergias} danger={selectedPatient.alergias !== 'Ninguna conocida'} />
-                        <SummaryCard icon={<Stethoscope className="h-4 w-4 text-primary-500" />} label="Último Diag." value={selectedPatient.lastDiag} />
-                        <SummaryCard icon={<Calendar className="h-4 w-4 text-amber-500" />} label="Última Consulta" value={selectedPatient.lastVisit} />
-                        <SummaryCard icon={<Activity className="h-4 w-4 text-emerald-500" />} label="Presión Art." value={selectedPatient.bp} />
-                        <SummaryCard icon={<Weight className="h-4 w-4 text-primary-500" />} label="Último Peso" value={selectedPatient.weight} />
-                        <SummaryCard icon={<FileText className="h-4 w-4 text-indigo-500" />} label="Última Eco" value={selectedPatient.ultrasound} />
+                        <SummaryCard icon={<AlertCircle className="h-4 w-4 text-rose-500" />} label="Alergias" value={selectedPatient.alergias || 'Ninguna'} danger={!!selectedPatient.alergias} />
+                        <SummaryCard icon={<Stethoscope className="h-4 w-4 text-primary-500" />} label="Último Diag." value={lastConsultation?.diagnosis || 'Sin historial'} />
+                        <SummaryCard icon={<Calendar className="h-4 w-4 text-amber-500" />} label="Última Consulta" value={lastConsultation?.date ? new Date(lastConsultation.date).toLocaleDateString() : 'Nunca'} />
+                        <SummaryCard icon={<Activity className="h-4 w-4 text-emerald-500" />} label="Presión Art." value={lastConsultation?.pressure || '—'} />
+                        <SummaryCard icon={<Weight className="h-4 w-4 text-primary-500" />} label="Último Peso" value={lastConsultation?.weight ? `${lastConsultation.weight} kg` : '—'} />
+                        <SummaryCard icon={<FileText className="h-4 w-4 text-indigo-500" />} label="Tipo Sangre" value={selectedPatient.tipoSanguineo || '—'} />
                       </div>
 
                       {/* Additional Quick Info */}
@@ -256,12 +245,12 @@ export function PatientSearchModal({
                         <div className="flex items-center gap-2">
                           <Droplet className="h-4 w-4 text-rose-500" />
                           <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">Tipo Sangre:</span>
-                          <span className="text-xs font-bold text-clinical-900">{selectedPatient.blood}</span>
+                          <span className="text-xs font-bold text-clinical-900">{selectedPatient.tipoSanguineo || '—'}</span>
                         </div>
                         <div className="flex items-center gap-2 border-l border-clinical-200 pl-4">
-                          <Calendar className="h-4 w-4 text-primary-500" />
-                          <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">FUM:</span>
-                          <span className="text-xs font-bold text-clinical-900">{selectedPatient.fum}</span>
+                          <User className="h-4 w-4 text-primary-500" />
+                          <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">Estado:</span>
+                          <span className="text-xs font-bold text-emerald-600">Activa</span>
                         </div>
                       </div>
                     </motion.div>
@@ -304,6 +293,15 @@ export function PatientSearchModal({
               <Button
                 variant="secondary"
                 disabled={!selectedId}
+                onClick={() => {
+                  if (selectedPatient) {
+                    const targetId = selectedPatient.numeroDocumento || selectedPatient.id
+                    if (targetId) {
+                      navigate(ROUTES.pacienteFicha.replace(':id', targetId))
+                      onClose()
+                    }
+                  }
+                }}
                 className="rounded-xl px-6 h-10 text-xs border-clinical-200"
               >
                 Ver Ficha

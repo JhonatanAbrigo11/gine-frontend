@@ -8,21 +8,26 @@ import {
   Heart, 
   Settings,
   Plus,
-  Camera,
   Calendar,
   AlertCircle,
   Activity,
   MapPin,
   Save,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
+import { pacienteService } from '@/entities/paciente/api/paciente.service'
+
+import type { Patient } from '@/entities/paciente/model/types'
+import { useToast } from '@/shared/ui/ToastContext'
 
 type NewPatientModalProps = {
   isOpen: boolean
   onClose: () => void
+  patient?: Patient | null // Opcional para edición
 }
 
 const SECTIONS = [
@@ -33,8 +38,10 @@ const SECTIONS = [
   { id: 'sistema', title: 'Sistema', icon: Settings },
 ]
 
-export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
+export function NewPatientModal({ isOpen, onClose, patient }: NewPatientModalProps) {
+  const { showToast } = useToast()
   const [activeSection, setActiveSection] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     nombres: '',
     apellidos: '',
@@ -44,7 +51,6 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
     edad: '',
     estadoCivil: 'Soltera',
     ocupacion: '',
-    foto: null,
     telefono: '',
     email: '',
     direccion: '',
@@ -65,6 +71,73 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
     fechaRegistro: new Date().toISOString().split('T')[0],
     observaciones: '',
   })
+
+  // Cargar datos si es edición
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        nombres: patient.nombres || '',
+        apellidos: patient.apellidos || '',
+        tipoDocumento: patient.tipoDocumento || 'DNI',
+        numeroDocumento: patient.numeroDocumento || '',
+        fechaNacimiento: patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toISOString().split('T')[0] : '',
+        edad: '', // Se calcula abajo
+        estadoCivil: patient.estadoCivil || 'Soltera',
+        ocupacion: patient.ocupacion || '',
+        telefono: patient.telefono || '',
+        email: patient.email || '',
+        direccion: patient.direccion || '',
+        ciudad: patient.ciudad || '',
+        contactoEmergencia: patient.contactoEmergencia || '',
+        telefonoEmergencia: patient.telefonoEmergencia || '',
+        tipoSanguineo: patient.tipoSanguineo || '',
+        alergias: patient.alergias || '',
+        antecedentes: patient.antecedentes || '',
+        seguroMedico: patient.seguroMedico || '',
+        menarquia: patient.menarquia || '',
+        metodoAnticonceptivo: patient.metodoAnticonceptivo || '',
+        vidaSexualActiva: patient.vidaSexualActiva || 'No',
+        gestas: patient.gestas?.toString() || '0',
+        partos: patient.partos?.toString() || '0',
+        cesareas: patient.cesareas?.toString() || '0',
+        abortos: patient.abortos?.toString() || '0',
+        fechaRegistro: patient.fechaRegistro ? new Date(patient.fechaRegistro).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        observaciones: patient.observaciones || '',
+      })
+      setActiveSection(0)
+    } else {
+      // Reset si no hay paciente (es nuevo)
+      setFormData({
+        nombres: '',
+        apellidos: '',
+        tipoDocumento: 'DNI',
+        numeroDocumento: '',
+        fechaNacimiento: '',
+        edad: '',
+        estadoCivil: 'Soltera',
+        ocupacion: '',
+        telefono: '',
+        email: '',
+        direccion: '',
+        ciudad: '',
+        contactoEmergencia: '',
+        telefonoEmergencia: '',
+        tipoSanguineo: '',
+        alergias: '',
+        antecedentes: '',
+        seguroMedico: '',
+        menarquia: '',
+        metodoAnticonceptivo: '',
+        vidaSexualActiva: 'No',
+        gestas: '0',
+        partos: '0',
+        cesareas: '0',
+        abortos: '0',
+        fechaRegistro: new Date().toISOString().split('T')[0],
+        observaciones: '',
+      })
+    }
+  }, [patient, isOpen])
 
   // Calcular edad automáticamente
   useEffect(() => {
@@ -90,6 +163,55 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
 
   const prevSection = () => {
     if (activeSection > 0) setActiveSection(prev => prev - 1)
+  }
+
+  const handleSave = async () => {
+    console.log('Ejecutando handleSave (versión Toasts v2)');
+    try {
+      setIsSaving(true)
+      const { edad, ...dataToSave } = formData
+      
+      // Validación básica
+      if (!formData.nombres || !formData.apellidos || !formData.numeroDocumento || !formData.fechaNacimiento) {
+        showToast('Por favor complete todos los campos obligatorios (*)', 'warning')
+        setIsSaving(false)
+        return
+      }
+
+      const payload = {
+        ...dataToSave,
+        gestas: parseInt(formData.gestas),
+        partos: parseInt(formData.partos),
+        cesareas: parseInt(formData.cesareas),
+        abortos: parseInt(formData.abortos),
+      }
+
+      if (patient) {
+        await pacienteService.update(patient.id, payload as any)
+        showToast('Paciente actualizada correctamente', 'success')
+      } else {
+        await pacienteService.create(payload as any)
+        showToast('Paciente registrada correctamente', 'success')
+      }
+      
+      onClose()
+    } catch (error: any) {
+      console.error('Error saving patient:', error)
+      const errorMsg = error.response?.data?.error || ''
+      if (errorMsg.includes('Unique constraint failed')) {
+        if (errorMsg.includes('numeroDocumento')) {
+          showToast('El número de documento ya está registrado', 'error')
+        } else if (errorMsg.includes('email')) {
+          showToast('El correo electrónico ya está registrado', 'error')
+        } else {
+          showToast('Ya existe un registro con esos datos únicos', 'error')
+        }
+      } else {
+        showToast('Error al guardar la paciente', 'error')
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (!isOpen) return null
@@ -121,7 +243,7 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-700/70">Registro Clínico</span>
               </div>
               <h2 className="text-2xl font-bold text-clinical-900 tracking-tight">
-                Nueva <span className="text-primary-700">Paciente</span>
+                {patient ? 'Editar' : 'Nueva'} <span className="text-primary-700">Paciente</span>
               </h2>
             </div>
             <button
@@ -192,23 +314,10 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
                 >
                   {activeSection === 0 && (
                     <div className="grid grid-cols-2 gap-6">
-                      <div className="col-span-2 flex items-center gap-6 mb-4">
-                        <div className="relative group">
-                          <div className="h-24 w-24 rounded-3xl bg-clinical-100 flex items-center justify-center border-2 border-dashed border-clinical-300 text-clinical-400 group-hover:border-primary-400 transition-all cursor-pointer">
-                            <Camera className="h-8 w-8" />
-                          </div>
-                          <button className="absolute -bottom-2 -right-2 h-8 w-8 bg-primary-600 text-white rounded-xl shadow-lg flex items-center justify-center border-2 border-white">
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-clinical-900">Foto de Perfil</h3>
-                          <p className="text-xs text-clinical-800/50">Opcional. Formatos aceptados: JPG, PNG.</p>
-                        </div>
-                      </div>
+
                       
-                      <InputField label="Nombres" value={formData.nombres} onChange={v => handleInputChange('nombres', v)} placeholder="Ej. Ana María" />
-                      <InputField label="Apellidos" value={formData.apellidos} onChange={v => handleInputChange('apellidos', v)} placeholder="Ej. García López" />
+                      <InputField label="Nombres" value={formData.nombres} onChange={v => handleInputChange('nombres', v)} placeholder="Ej. Ana María" required />
+                      <InputField label="Apellidos" value={formData.apellidos} onChange={v => handleInputChange('apellidos', v)} placeholder="Ej. García López" required />
                       
                       <SelectField 
                         label="Tipo de Documento" 
@@ -216,9 +325,9 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
                         onChange={v => handleInputChange('tipoDocumento', v)}
                         options={['DNI', 'Cédula', 'Pasaporte', 'Carnet Extr.']}
                       />
-                      <InputField label="Número de Documento" value={formData.numeroDocumento} onChange={v => handleInputChange('numeroDocumento', v)} placeholder="00000000" />
+                      <InputField label="Número de Documento" value={formData.numeroDocumento} onChange={v => handleInputChange('numeroDocumento', v)} placeholder="00000000" required />
                       
-                      <InputField label="Fecha de Nacimiento" type="date" value={formData.fechaNacimiento} onChange={v => handleInputChange('fechaNacimiento', v)} />
+                      <InputField label="Fecha de Nacimiento" type="date" value={formData.fechaNacimiento} onChange={v => handleInputChange('fechaNacimiento', v)} required />
                       <div className="space-y-2">
                         <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">Edad</label>
                         <div className="h-12 flex items-center px-5 rounded-2xl bg-clinical-50 border border-clinical-200 text-sm font-bold text-primary-700">
@@ -302,7 +411,7 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
             <Button 
               variant="secondary" 
               onClick={prevSection} 
-              disabled={activeSection === 0}
+              disabled={activeSection === 0 || isSaving}
               className="px-6 rounded-2xl"
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
@@ -310,13 +419,22 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
             </Button>
             
             <div className="flex gap-3">
-              <Button variant="ghost" onClick={onClose} className="px-6 rounded-2xl text-clinical-400">
+              <Button variant="ghost" onClick={onClose} disabled={isSaving} className="px-6 rounded-2xl text-clinical-400">
                 Cancelar
               </Button>
               {activeSection === SECTIONS.length - 1 ? (
-                <Button variant="primary" className="px-8 rounded-2xl shadow-xl shadow-primary-200" onClick={onClose}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar Paciente
+                <Button 
+                  variant="primary" 
+                  className="px-8 rounded-2xl shadow-xl shadow-primary-200 min-w-[160px]" 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {isSaving ? 'Guardando...' : patient ? 'Actualizar Datos' : 'Guardar Paciente'}
                 </Button>
               ) : (
                 <Button variant="primary" className="px-8 rounded-2xl shadow-xl shadow-primary-200" onClick={nextSection}>
@@ -334,10 +452,12 @@ export function NewPatientModal({ isOpen, onClose }: NewPatientModalProps) {
 
 /* Helper Components */
 
-function InputField({ label, value, onChange, placeholder, type = 'text', className, icon }: any) {
+function InputField({ label, value, onChange, placeholder, type = 'text', className, icon, required }: any) {
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">
+        {label} {required && <span className="text-rose-500 ml-1">*</span>}
+      </label>
       <div className="relative">
         {icon && (
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-clinical-400">
@@ -359,10 +479,12 @@ function InputField({ label, value, onChange, placeholder, type = 'text', classN
   )
 }
 
-function TextAreaField({ label, value, onChange, placeholder, className }: any) {
+function TextAreaField({ label, value, onChange, placeholder, className, required }: any) {
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">
+        {label} {required && <span className="text-rose-500 ml-1">*</span>}
+      </label>
       <textarea 
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -374,10 +496,12 @@ function TextAreaField({ label, value, onChange, placeholder, className }: any) 
   )
 }
 
-function SelectField({ label, value, onChange, options, className }: any) {
+function SelectField({ label, value, onChange, options, className, required }: any) {
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">
+        {label} {required && <span className="text-rose-500 ml-1">*</span>}
+      </label>
       <select 
         value={value}
         onChange={e => onChange(e.target.value)}

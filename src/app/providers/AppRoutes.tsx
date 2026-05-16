@@ -43,7 +43,7 @@ export function AppRoutes() {
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         
         {/* Specific Route first */}
-        <Route path="/consultas/nueva/:id" element={<NuevaConsultaPage />} />
+        <Route path={ROUTES.nuevaConsulta} element={<NuevaConsultaPage />} />
         <Route path="/consultas" element={<ConsultasPage />} />
         
         <Route path="/recetas/nueva/:id" element={<RecetaMedicaPage />} />
@@ -52,7 +52,7 @@ export function AppRoutes() {
         <Route path="/ordenes/nueva/:id" element={<NuevaOrdenPage />} />
         <Route path={ROUTES.ordenes} element={<OrdenesPage />} />
         
-        <Route path="/pacientes/:id" element={<PacienteDetallePage />} />
+        <Route path={ROUTES.pacienteFicha} element={<PacienteDetallePage />} />
         <Route path={ROUTES.pacientes} element={<PacientesPage />} />
         <Route path={ROUTES.agenda} element={<AgendasPage />} />
         

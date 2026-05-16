@@ -51,13 +51,87 @@ const TABS = [
    MAIN COMPONENT
    ================================================== */
 
+import { pacienteService } from '@/entities/paciente/api/paciente.service'
+import { consultationService } from '@/entities/consulta/model/consultation.service'
+import type { Patient } from '@/entities/paciente/model/types'
+import { Loader2 } from 'lucide-react'
+
 export function NuevaConsultaPage() {
-  const { id } = useParams()
+  const { id, num } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('evolucion')
   const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [patient, setPatient] = useState<Patient | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({
+    reason: '',
+    evolution: '',
+    physicalExam: '',
+    diagnosis: '',
+    treatmentPlan: '',
+    followUp: '',
+    pressure: '',
+    weight: '',
+    height: '',
+    heartRate: '',
+    temp: '',
+    saturacion: '',
+    notes: ''
+  })
   
-  const isPregnant = true
+  useEffect(() => {
+    const initData = async () => {
+      if (!id) return
+      try {
+        setLoading(true)
+        const data = await consultationService.initConsultation(id)
+        setPatient(data.patient)
+        // Pre-llenar campos que vienen de la historia
+        setFormData(prev => ({
+          ...prev,
+          evolution: data.lastFollowUp ? `SEGUIMIENTO PREVIO: ${data.lastFollowUp}\n\n` : ''
+        }))
+      } catch (error) {
+        console.error('Error initializing consultation:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    initData()
+  }, [id])
+
+  const handleSave = async () => {
+    if (!patient) return
+    try {
+      setLoading(true)
+      const payload = {
+        ...formData,
+        patientId: patient.id,
+        doctor: "Dr. Andres Morquecho",
+        date: new Date().toISOString()
+      }
+      await consultationService.save(payload)
+      navigate('/consultas')
+    } catch (error) {
+      console.error('Error saving consultation:', error)
+      alert('Error al guardar la consulta')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-clinical-50">
+        <Loader2 className="h-10 w-10 text-primary-600 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!patient) return null
+
+  const isPregnant = true // Se podría derivar de los datos o selección
+  const patientAge = patient.fechaNacimiento ? new Date().getFullYear() - new Date(patient.fechaNacimiento).getFullYear() : '—'
 
   return (
     <div className="min-h-dvh bg-clinical-50/50 flex flex-col">
@@ -74,13 +148,17 @@ export function NuevaConsultaPage() {
               </button>
               
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-primary-200">A</div>
+                <div className="h-14 w-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-primary-200">
+                  {patient.nombres.charAt(0)}
+                </div>
                 <div>
                    <div className="flex items-center gap-3">
-                      <h2 className="text-2xl font-bold text-clinical-900 leading-none">Ana García López</h2>
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-black uppercase border border-rose-100">Alergias: Penicilina, AINES</span>
+                      <h2 className="text-2xl font-bold text-clinical-900 leading-none">{patient.nombres} {patient.apellidos}</h2>
+                      {patient.alergias && (
+                        <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-black uppercase border border-rose-100">Alergias: {patient.alergias}</span>
+                      )}
                    </div>
-                   <p className="text-xs font-bold text-clinical-500 mt-1.5 uppercase tracking-widest">28 Años • HC: 2026-001 • <span className="text-primary-600 font-black">Consulta en Curso</span></p>
+                   <p className="text-xs font-bold text-clinical-500 mt-1.5 uppercase tracking-widest">{patientAge} Años • HC: {patient.numeroDocumento} • <span className="text-primary-600 font-black">Consulta #{num || 'Nueva'}</span></p>
                 </div>
               </div>
             </div>
@@ -89,10 +167,14 @@ export function NuevaConsultaPage() {
                <button className="h-11 w-11 rounded-2xl bg-white border border-clinical-200 flex items-center justify-center text-clinical-400 hover:text-primary-600 transition-all shadow-sm hover:border-primary-300">
                   <Printer className="h-5 w-5" />
                </button>
-               <Button variant="primary" className="rounded-2xl h-11 px-8 shadow-xl shadow-primary-200 font-bold tracking-tight group">
-                  <Save className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
-                  Finalizar Consulta
-               </Button>
+                <Button 
+                  variant="primary" 
+                  className="rounded-2xl h-11 px-8 shadow-xl shadow-primary-200 font-bold tracking-tight group"
+                  onClick={handleSave}
+                >
+                   <Save className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                   Finalizar Consulta
+                </Button>
             </div>
           </div>
 
@@ -139,12 +221,12 @@ export function NuevaConsultaPage() {
                  exit={{ opacity: 0, y: -10 }} 
                  className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium min-h-[600px]"
                >
-                  {activeTab === 'evolucion' && <EvolucionTab />}
-                  {activeTab === 'signos' && <SignosVitalesTab isPregnant={isPregnant} />}
-                  {activeTab === 'ginecologia' && <GinecologiaTab isPregnant={isPregnant} />}
-                  {activeTab === 'diagnostico' && <DiagnosticoTab />}
-                  {activeTab === 'plan' && <PlanTab />}
-                  {activeTab === 'documentos' && <DocumentosTab />}
+                  {activeTab === 'evolucion' && <EvolucionTab formData={formData} setFormData={setFormData} />}
+                  {activeTab === 'signos' && <SignosVitalesTab formData={formData} setFormData={setFormData} isPregnant={isPregnant} />}
+                  {activeTab === 'ginecologia' && <GinecologiaTab formData={formData} setFormData={setFormData} isPregnant={isPregnant} />}
+                  {activeTab === 'diagnostico' && <DiagnosticoTab formData={formData} setFormData={setFormData} />}
+                  {activeTab === 'plan' && <PlanTab formData={formData} setFormData={setFormData} />}
+                  {activeTab === 'documentos' && <DocumentosTab formData={formData} setFormData={setFormData} />}
                </motion.div>
             </AnimatePresence>
          </div>
@@ -178,59 +260,104 @@ export function NuevaConsultaPage() {
    TAB COMPONENTS
    ================================================== */
 
-function EvolucionTab() {
+interface TabProps {
+  formData: any;
+  setFormData: React.Dispatch<React.SetStateAction<any>>;
+}
+
+function EvolucionTab({ formData, setFormData }: TabProps) {
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }))
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
        <div className="col-span-full grid grid-cols-3 gap-6 mb-4">
           <div className="col-span-1">
              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-clinical-400 mb-2 block ml-2">Tipo de Atención</label>
-             <select className="w-full h-12 px-4 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none">
-                <option>Control Prenatal</option>
-                <option>Ginecología General</option>
-                <option>Planificación</option>
-                <option>Procedimiento</option>
+             <select 
+               value={formData.type}
+               onChange={(e) => handleChange('type', e.target.value)}
+               className="w-full h-12 px-4 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none"
+             >
+                <option value="Consulta Ginecología">Consulta Ginecología</option>
+                <option value="Control Prenatal">Control Prenatal</option>
+                <option value="Planificación">Planificación</option>
+                <option value="Procedimiento">Procedimiento</option>
              </select>
           </div>
           <div className="col-span-2">
              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-clinical-400 mb-2 block ml-2">Motivo de Consulta</label>
-             <input type="text" className="w-full h-12 px-5 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Ej: Control prenatal rutinario de segundo trimestre" />
+             <input 
+               type="text" 
+               value={formData.reason}
+               onChange={(e) => handleChange('reason', e.target.value)}
+               className="w-full h-12 px-5 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none" 
+               placeholder="Ej: Control prenatal rutinario de segundo trimestre" 
+             />
           </div>
        </div>
 
        <FormSection title="Enfermedad Actual / Evolución" icon={<History className="h-4 w-4" />}>
-          <textarea className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Describa la evolución del paciente..." />
+          <textarea 
+            value={formData.evolution}
+            onChange={(e) => handleChange('evolution', e.target.value)}
+            className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+            placeholder="Describa la evolución del paciente..." 
+          />
        </FormSection>
 
        <FormSection title="Antecedentes Relevantes" icon={<ClipboardList className="h-4 w-4" />}>
-          <textarea className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Actualizar antecedentes si aplica..." />
+          <textarea 
+            defaultValue={formData.antecedentes || ''}
+            className="w-full h-48 rounded-[2rem] bg-clinical-50/10 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none opacity-80" 
+            placeholder="Datos de la ficha de la paciente..." 
+            readOnly
+          />
        </FormSection>
 
        <FormSection title="Exploración Física" icon={<Activity className="h-4 w-4" />}>
-          <textarea className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Resultados del examen físico general..." />
+          <textarea 
+            value={formData.physicalExam}
+            onChange={(e) => handleChange('physicalExam', e.target.value)}
+            className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+            placeholder="Resultados del examen físico general..." 
+          />
        </FormSection>
 
-       <FormSection title="Notas de Seguimiento" icon={<FileText className="h-4 w-4" />}>
-          <textarea className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Notas internas o recordatorios..." />
+       <FormSection title="Notas Internas" icon={<FileText className="h-4 w-4" />}>
+          <textarea 
+            value={formData.notes}
+            onChange={(e) => handleChange('notes', e.target.value)}
+            className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+            placeholder="Notas internas o recordatorios..." 
+          />
        </FormSection>
     </div>
   )
 }
 
-function SignosVitalesTab({ isPregnant }: { isPregnant: boolean }) {
+function SignosVitalesTab({ formData, setFormData, isPregnant }: TabProps & { isPregnant: boolean }) {
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }))
+  }
+
   return (
     <div className="space-y-12">
        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          <SignoInput label="Peso" unit="kg" value="68.5" />
-          <SignoInput label="Talla" unit="cm" value="162" />
+          <SignoInput label="Peso" unit="kg" value={formData.weight} onChange={(v) => handleChange('weight', v)} />
+          <SignoInput label="Talla" unit="cm" value={formData.height} onChange={(v) => handleChange('height', v)} />
           <div className="p-5 rounded-2xl bg-primary-50 border border-primary-100 flex flex-col justify-center">
              <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest mb-1">I.M.C.</p>
-             <p className="text-2xl font-black text-primary-700">26.1 <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg ml-2">Sobrepeso</span></p>
+             <p className="text-2xl font-black text-primary-700">
+               {formData.weight && formData.height ? (Number(formData.weight) / Math.pow(Number(formData.height)/100, 2)).toFixed(1) : '—'}
+             </p>
           </div>
-          <SignoInput label="Presión Arterial" unit="mmHg" value="110/70" />
-          <SignoInput label="Frecuencia Cardíaca" unit="bpm" value="78" />
-          <SignoInput label="Frec. Respiratoria" unit="rpm" value="18" />
-          <SignoInput label="Temperatura" unit="°C" value="36.4" />
-          <SignoInput label="Saturación O2" unit="%" value="99" />
+          <SignoInput label="Presión Arterial" unit="mmHg" value={formData.pressure} onChange={(v) => handleChange('pressure', v)} />
+          <SignoInput label="Frecuencia Cardíaca" unit="bpm" value={formData.heartRate} onChange={(v) => handleChange('heartRate', v)} />
+          <SignoInput label="Frec. Respiratoria" unit="rpm" value={formData.respRate} onChange={(v) => handleChange('respRate', v)} />
+          <SignoInput label="Temperatura" unit="°C" value={formData.temp} onChange={(v) => handleChange('temp', v)} />
+          <SignoInput label="Saturación O2" unit="%" value={formData.saturacion} onChange={(v) => handleChange('saturacion', v)} />
        </div>
 
        {isPregnant && (
@@ -241,11 +368,11 @@ function SignosVitalesTab({ isPregnant }: { isPregnant: boolean }) {
                <h3 className="text-xl font-bold text-clinical-900 tracking-tight">Parámetros Obstétricos</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-               <SignoInput label="Altura Uterina" unit="cm" value="24" />
-               <SignoInput label="F.C.F." unit="lpm" value="145" />
-               <SignoInput label="Mov. Fetales" unit="" value="Presentes" />
-               <SignoInput label="Edema" unit="" value="Negativo" />
-               <SignoInput label="Contracciones" unit="" value="Ausentes" />
+               <SignoInput label="Altura Uterina" unit="cm" value={formData.alturaUterina || ''} onChange={(v) => handleChange('alturaUterina', v)} />
+               <SignoInput label="F.C.F." unit="lpm" value={formData.fcf || ''} onChange={(v) => handleChange('fcf', v)} />
+               <SignoInput label="Mov. Fetales" unit="" value={formData.movFetales || ''} onChange={(v) => handleChange('movFetales', v)} />
+               <SignoInput label="Edema" unit="" value={formData.edema || ''} onChange={(v) => handleChange('edema', v)} />
+               <SignoInput label="Contracciones" unit="" value={formData.contracciones || ''} onChange={(v) => handleChange('contracciones', v)} />
             </div>
          </motion.div>
        )}
@@ -253,21 +380,23 @@ function SignosVitalesTab({ isPregnant }: { isPregnant: boolean }) {
   )
 }
 
-function GinecologiaTab({ isPregnant }: { isPregnant: boolean }) {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 4, 12))
+function GinecologiaTab({ formData, setFormData, isPregnant }: TabProps & { isPregnant: boolean }) {
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }))
+  }
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12">
        <div className="space-y-10">
-          <FormSection title="Antecedentes Gineco-Obstétricos" icon={<Heart className="h-4 w-4" />}>
+          <FormSection title="Antecedentes Gineco-Obstétricos (Referencia)" icon={<Heart className="h-4 w-4" />}>
              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <SignoInput label="Gestas" unit="" value="1" />
-                <SignoInput label="Partos" unit="" value="0" />
-                <SignoInput label="Cesáreas" unit="" value="0" />
-                <SignoInput label="Abortos" unit="" value="0" />
-                <SignoInput label="Inicio Vida Sex." unit="Años" value="18" />
-                <SignoInput label="Parejas" unit="" value="2" />
-                <SignoInput label="Ciclo Menstrual" unit="Días" value="28" />
-                <SignoInput label="Duración Sang." unit="Días" value="5" />
+                <SignoInput label="Gestas" unit="" value={formData.gestas || '0'} readOnly />
+                <SignoInput label="Partos" unit="" value={formData.partos || '0'} readOnly />
+                <SignoInput label="Cesáreas" unit="" value={formData.cesareas || '0'} readOnly />
+                <SignoInput label="Abortos" unit="" value={formData.abortos || '0'} readOnly />
+                <SignoInput label="Ciclo Menstrual" unit="Días" value={formData.ciclo || ''} onChange={(v) => handleChange('ciclo', v)} />
+                <SignoInput label="Duración Sang." unit="Días" value={formData.duracion || ''} onChange={(v) => handleChange('duracion', v)} />
              </div>
           </FormSection>
 
@@ -295,71 +424,50 @@ function GinecologiaTab({ isPregnant }: { isPregnant: boolean }) {
   )
 }
 
-function DiagnosticoTab() {
-  const [search, setSearch] = useState('')
-  const diagnostics = [
-    { code: 'Z34.0', title: 'Supervisión de embarazo de primer trimestre' },
-    { code: 'O20.0', title: 'Amenaza de aborto' },
-  ]
+function DiagnosticoTab({ formData, setFormData }: TabProps) {
+  const handleChange = (value: string) => {
+    setFormData((prev: any) => ({ ...prev, diagnosis: value }))
+  }
+
   return (
     <div className="space-y-10">
-       <div className="max-w-2xl space-y-4">
-          <label className="text-xs font-black text-clinical-400 uppercase tracking-widest ml-2">Búsqueda CIE-10</label>
-          <div className="relative group">
-             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-clinical-300 group-focus-within:text-primary-500 transition-colors" />
-             <input 
-               type="text" 
-               className="w-full h-14 pl-14 pr-6 rounded-2xl bg-clinical-50/50 border-none ring-1 ring-clinical-100 focus:ring-2 focus:ring-primary-500 outline-none text-sm font-bold text-clinical-900" 
-               placeholder="Escriba código o nombre del diagnóstico..."
-               value={search}
-               onChange={(e) => setSearch(e.target.value)}
-             />
-          </div>
-       </div>
-
-       <div className="space-y-4">
-          <h4 className="text-[10px] font-black text-clinical-400 uppercase tracking-widest ml-2">Diagnósticos Agregados</h4>
-          {diagnostics.map((d, i) => (
-            <div key={i} className="flex items-center justify-between p-5 rounded-2xl bg-white border border-clinical-100 shadow-sm group hover:border-primary-200 transition-all">
-               <div className="flex items-center gap-4">
-                  <div className="h-10 w-20 rounded-xl bg-primary-50 flex items-center justify-center text-xs font-black text-primary-700 border border-primary-100 uppercase">{d.code}</div>
-                  <p className="text-sm font-bold text-clinical-900">{d.title}</p>
-               </div>
-               <button className="h-10 w-10 rounded-xl flex items-center justify-center text-clinical-200 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"><Trash2 className="h-4 w-4" /></button>
-            </div>
-          ))}
-          <button className="w-full h-14 rounded-2xl border-2 border-dashed border-clinical-100 text-clinical-300 flex items-center justify-center gap-2 hover:border-primary-200 hover:text-primary-500 transition-all text-sm font-bold">
-             <PlusCircle className="h-5 w-5" /> Agregar Diagnóstico Adicional
-          </button>
+       <div className="max-w-full space-y-4">
+          <label className="text-xs font-black text-clinical-400 uppercase tracking-widest ml-2">Diagnóstico / Resumen Clínico</label>
+          <textarea 
+            value={formData.diagnosis}
+            onChange={(e) => handleChange(e.target.value)}
+            className="w-full h-80 rounded-[2.5rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-8 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+            placeholder="Escriba el diagnóstico definitivo y resumen de la consulta..." 
+          />
        </div>
     </div>
   )
 }
 
-function PlanTab() {
+function PlanTab({ formData, setFormData }: TabProps) {
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }))
+  }
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-12">
        <div className="space-y-10">
           <FormSection title="Plan de Tratamiento & Indicaciones" icon={<Pill className="h-4 w-4" />}>
-             <textarea className="w-full h-64 rounded-[2.5rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-8 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Indique el tratamiento a seguir..." />
+             <textarea 
+               value={formData.treatmentPlan}
+               onChange={(e) => handleChange('treatmentPlan', e.target.value)}
+               className="w-full h-64 rounded-[2.5rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-8 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+               placeholder="Indique el tratamiento a seguir..." 
+             />
           </FormSection>
 
-          <FormSection title="Próxima Cita" icon={<CalendarIcon className="h-4 w-4" />}>
-             <div className="flex items-center gap-6">
-                <div className="flex-1 space-y-2">
-                   <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest ml-1">Fecha Sugerida</label>
-                   <input type="date" className="w-full h-12 px-5 rounded-xl bg-clinical-50 ring-1 ring-clinical-100 border-none font-bold text-sm" />
-                </div>
-                <div className="flex-1 space-y-2">
-                   <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest ml-1">Frecuencia</label>
-                   <select className="w-full h-12 px-4 rounded-xl bg-clinical-50 ring-1 ring-clinical-100 border-none font-bold text-sm">
-                      <option>En 15 días</option>
-                      <option>En 1 mes</option>
-                      <option>En 3 meses</option>
-                      <option>A demanda</option>
-                   </select>
-                </div>
-             </div>
+          <FormSection title="Notas de Seguimiento" icon={<CalendarIcon className="h-4 w-4" />}>
+             <textarea 
+               value={formData.followUp}
+               onChange={(e) => handleChange('followUp', e.target.value)}
+               className="w-full h-32 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+               placeholder="Indique qué se debe revisar en la próxima cita..." 
+             />
           </FormSection>
        </div>
 
@@ -436,14 +544,19 @@ function FormSection({ title, icon, children }: any) {
   )
 }
 
-function SignoInput({ label, unit, value }: any) {
+function SignoInput({ label, unit, value, onChange, readOnly }: any) {
   return (
     <div className="space-y-2">
-       <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest ml-1">{label} <span className="lowercase font-medium opacity-60">({unit})</span></label>
+       <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest ml-1">{label} {unit && <span className="lowercase font-medium opacity-60">({unit})</span>}</label>
        <input 
-         type="text" 
-         defaultValue={value}
-         className="w-full h-12 px-5 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" 
+          type="text" 
+          value={value || ''}
+          onChange={(e) => !readOnly && onChange && onChange(e.target.value)}
+          readOnly={readOnly}
+          className={cn(
+            "w-full h-12 px-5 rounded-2xl border-none ring-1 ring-clinical-100 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm",
+            readOnly ? "bg-clinical-50/50 text-clinical-400 cursor-not-allowed" : "bg-clinical-50 text-clinical-900"
+          )}
        />
     </div>
   )
