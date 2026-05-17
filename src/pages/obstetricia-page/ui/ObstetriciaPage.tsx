@@ -154,14 +154,14 @@ function QuickStatCard({ icon, label, value, color, isAction = false }: any) {
 
   return (
     <motion.div 
-      whileHover={{ y: -2, shadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}
+      whileHover={{ y: -2, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}
       className={cn(
         "p-5 rounded-2xl flex items-center gap-4 cursor-pointer bg-white border border-clinical-100 shadow-sm transition-all h-20 border-l-4",
         theme.accent
       )}
     >
        <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm", theme.icon)}>
-          {cloneElement(icon as React.ReactElement, { className: 'h-5 w-5' })}
+          {icon}
        </div>
        <div className="text-left min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.1em] mb-0.5 truncate text-clinical-400">{label}</p>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -263,12 +263,16 @@ function DatosPersonalesTab({ patient }: { patient: Patient }) {
                 <div className="h-px bg-clinical-100/50" />
                 <div className="flex items-center justify-between">
                    <span className="text-[10px] font-black text-clinical-400 uppercase tracking-widest">F.U.M.</span>
-                   <span className="text-sm font-black text-primary-600">No reg.</span>
+                   <span className="text-sm font-black text-primary-600">
+                     {patient.consultations?.[0]?.gynecology?.fum ? new Date(patient.consultations[0].gynecology.fum).toLocaleDateString('es-ES') : 'No reg.'}
+                   </span>
                 </div>
                 <div className="h-px bg-clinical-100/50" />
                 <div className="flex items-center justify-between">
                    <span className="text-[10px] font-black text-clinical-400 uppercase tracking-widest">F.P.P. (Estimada)</span>
-                   <span className="text-sm font-black text-emerald-600">No reg.</span>
+                   <span className="text-sm font-black text-emerald-600">
+                     {patient.consultations?.[0]?.gynecology?.fpp ? new Date(patient.consultations[0].gynecology.fpp).toLocaleDateString('es-ES') : 'No reg.'}
+                   </span>
                 </div>
              </div>
           </div>
@@ -278,15 +282,33 @@ function DatosPersonalesTab({ patient }: { patient: Patient }) {
 }
 
 function HistorialClinicoTab({ patient }: { patient: Patient }) {
-  const consultations = patient.consultations || []
+  const navigate = useNavigate()
+  const [consultations, setConsultations] = useState<any[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchConsultations = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`http://localhost:3001/api/patients/${patient.numeroDocumento || patient.id}/consultations?page=${page}&limit=5`)
+        const data = await response.json()
+        setConsultations(data.data)
+        setTotalPages(data.meta.totalPages)
+      } catch (error) {
+        console.error('Error fetching consultations:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchConsultations()
+  }, [patient, page])
 
   return (
     <div className="space-y-8 w-full">
        <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-bold text-clinical-900 tracking-tight">Línea de Tiempo de Consultas</h3>
-          <Button variant="secondary" className="h-9 text-[10px] font-black uppercase tracking-widest px-4 border-clinical-200">
-             Descargar Resumen
-          </Button>
        </div>
        
        {consultations.length === 0 ? (
@@ -309,34 +331,59 @@ function HistorialClinicoTab({ patient }: { patient: Patient }) {
                             </span>
                             <h4 className="text-lg font-black text-clinical-900">{item.type}</h4>
                          </div>
-                         <button className="h-9 w-9 rounded-xl flex items-center justify-center text-clinical-300 hover:bg-clinical-50 hover:text-clinical-900 transition-all">
-                            <MoreHorizontal className="h-5 w-5" />
+                         <button 
+                            onClick={() => navigate(`/consultas/activa/${patient.numeroDocumento || patient.id}`, { state: { consultationId: item.id } })}
+                            className="h-9 w-9 rounded-xl flex items-center justify-center text-clinical-400 hover:bg-primary-50 hover:text-primary-600 border border-transparent hover:border-primary-100 transition-all shadow-sm bg-white"
+                         >
+                            <Eye className="h-5 w-5" />
                          </button>
                       </div>
                       <div className="bg-clinical-50/50 rounded-2xl p-6 border border-clinical-100 mb-6">
-                         <p className="text-sm font-medium text-clinical-800 leading-relaxed italic">"{item.diagnosis || 'Sin diagnóstico registrado'}"</p>
+                         <p className="text-sm font-medium text-clinical-800 leading-relaxed italic">"{item.evolution || item.reason || 'Sin diagnóstico registrado'}"</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-8">
                          <div className="flex items-center gap-2">
                             <Activity className="h-4 w-4 text-emerald-500" />
                             <span className="text-[11px] font-bold text-clinical-400 uppercase tracking-widest">Presión:</span>
-                            <span className="text-xs font-black text-clinical-900">{item.pressure || '—'}</span>
+                            <span className="text-xs font-black text-clinical-900">{item.vitalSigns?.pressure || '—'}</span>
                          </div>
                          <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-amber-500" />
                             <span className="text-[11px] font-bold text-clinical-400 uppercase tracking-widest">Peso:</span>
-                            <span className="text-xs font-black text-clinical-900">{item.weight || '—'}</span>
+                            <span className="text-xs font-black text-clinical-900">{item.vitalSigns?.weight || '—'}</span>
                          </div>
                          <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-primary-500" />
                             <span className="text-[11px] font-bold text-clinical-400 uppercase tracking-widest">Doctor:</span>
-                            <span className="text-xs font-black text-clinical-900">{item.doctor || '—'}</span>
+                            <span className="text-xs font-black text-clinical-900">{item.doctorId || '—'}</span>
                          </div>
                       </div>
                    </div>
                 </div>
              ))}
           </div>
+       )}
+
+       {totalPages > 1 && (
+         <div className="flex justify-center items-center gap-4 mt-8">
+           <Button 
+             variant="ghost" 
+             disabled={page === 1} 
+             onClick={() => setPage(p => p - 1)}
+             className="text-sm rounded-xl h-10 px-4"
+           >
+             Anterior
+           </Button>
+           <span className="text-sm font-bold text-clinical-500">Página {page} de {totalPages}</span>
+           <Button 
+             variant="secondary" 
+             disabled={page === totalPages} 
+             onClick={() => setPage(p => p + 1)}
+             className="text-sm rounded-xl h-10 px-4 bg-white"
+           >
+             Siguiente
+           </Button>
+         </div>
        )}
     </div>
   )
@@ -444,50 +491,77 @@ function ControlPrenatalTab({ patient }: { patient: Patient }) {
 }
 
 function DocumentosTab({ patient }: { patient: Patient }) {
-  const categories = ['Laboratorio', 'Ecografía', 'Imagenología']
-  
+  const [documents, setDocuments] = useState<any[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`http://localhost:3001/api/patients/${patient.numeroDocumento || patient.id}/documents?page=${page}&limit=9`)
+        const data = await response.json()
+        setDocuments(data.data || [])
+        setTotalPages(data.meta?.totalPages || 1)
+      } catch (error) {
+        console.error('Error fetching documents:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDocuments()
+  }, [patient, page])
+
   return (
     <div className="space-y-10">
-       {categories.map(cat => (
-          <section key={cat}>
-             <div className="flex items-center gap-4 mb-6">
-                <div className="h-10 w-10 rounded-xl bg-white border border-clinical-100 shadow-sm flex items-center justify-center text-primary-600">
-                   {cat === 'Laboratorio' ? <FlaskConical className="h-5 w-5" /> : 
-                    cat === 'Ecografía' ? <Activity className="h-5 w-5" /> : 
-                    <ImageIcon className="h-5 w-5" />}
-                </div>
-                <h3 className="text-lg font-bold text-clinical-900 tracking-tight">{cat}</h3>
-                <div className="h-px flex-1 bg-clinical-100" />
+       <section>
+          <div className="flex items-center gap-4 mb-6">
+             <div className="h-10 w-10 rounded-xl bg-white border border-clinical-100 shadow-sm flex items-center justify-center text-primary-600">
+                <FileText className="h-5 w-5" />
              </div>
-             
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {DOCUMENTS.filter(doc => doc.category === cat).map(doc => (
-                   <div key={doc.id} className="glass-card rounded-[2.5rem] p-6 border-white hover:border-primary-100 hover:shadow-xl transition-all group">
-                      <div className="flex items-start justify-between mb-4">
-                         <div className="h-12 w-12 rounded-2xl bg-clinical-50 text-clinical-300 flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all">
-                            <FileText className="h-6 w-6" />
-                         </div>
-                         <div className="flex gap-1">
-                            <button className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all"><Eye className="h-4 w-4" /></button>
-                            <button className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all"><Download className="h-4 w-4" /></button>
-                         </div>
+             <h3 className="text-lg font-bold text-clinical-900 tracking-tight">Archivos Clínicos</h3>
+             <div className="h-px flex-1 bg-clinical-100" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {documents.map(doc => (
+                <div key={doc.id} className="glass-card rounded-[2.5rem] p-6 border-white hover:border-primary-100 hover:shadow-xl transition-all group">
+                   <div className="flex items-start justify-between mb-4">
+                      <div className="h-12 w-12 rounded-2xl bg-clinical-50 text-clinical-300 flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all">
+                         <FileText className="h-6 w-6" />
                       </div>
-                      <h4 className="text-sm font-bold text-clinical-900 mb-1 truncate">{doc.name}</h4>
-                      <div className="flex items-center justify-between text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-4">
-                         <span>{doc.date}</span>
-                         <span className="px-2 py-0.5 rounded-lg bg-clinical-50">{doc.size}</span>
+                      <div className="flex gap-1">
+                         <button 
+                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `http://localhost:3001${doc.url}`, '_blank')}
+                            className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all"
+                         >
+                            <Eye className="h-4 w-4" />
+                         </button>
+                         <button 
+                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `http://localhost:3001${doc.url}`, '_blank')}
+                            className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                         >
+                            <Download className="h-4 w-4" />
+                         </button>
                       </div>
                    </div>
-                ))}
-                
-                {/* Empty State / Add Placeholder */}
+                   <h4 className="text-sm font-bold text-clinical-900 mb-1 truncate" title={doc.name}>{doc.name}</h4>
+                   <p className="text-[10px] font-semibold text-clinical-400 truncate">{doc.reference}</p>
+                   <div className="flex items-center justify-between text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-4">
+                      <span>{new Date(doc.createdAt).toLocaleDateString('es-ES')}</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-primary-50 text-primary-700 text-[9px] tracking-normal font-black">{doc.source}</span>
+                   </div>
+                </div>
+             ))}
+             
+             {/* Empty State / Add Placeholder */}
                 <button className="rounded-[2.5rem] border-2 border-dashed border-clinical-100 p-6 flex flex-col items-center justify-center text-clinical-300 hover:border-primary-300 hover:text-primary-600 transition-all bg-white/10 group">
                    <div className="h-10 w-10 rounded-full border-2 border-dashed border-clinical-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Plus className="h-5 w-5" /></div>
-                   <span className="text-[10px] font-black uppercase tracking-widest">Añadir {cat}</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest">Añadir Documento</span>
                 </button>
              </div>
           </section>
-       ))}
     </div>
   )
 }
