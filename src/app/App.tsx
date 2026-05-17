@@ -1,7 +1,7 @@
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from "sonner"
 
-import { SiteConfigProvider } from '@/features/site-config'
+import { BusinessSettingsProvider, SiteConfigProvider } from '@/features/site-config'
 import { AuthProvider } from '@/features/login/model/auth-context'
 
 import { AppRoutes } from './providers/AppRoutes'
@@ -14,11 +14,13 @@ export function App() {
       <BrowserRouter>
         <Toaster position="top-right" richColors closeButton />
         <ToastProvider>
-          <SiteConfigProvider>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </SiteConfigProvider>
+          <BusinessSettingsProvider>
+            <SiteConfigProvider>
+              <AuthProvider>
+                <AppRoutes />
+              </AuthProvider>
+            </SiteConfigProvider>
+          </BusinessSettingsProvider>
         </ToastProvider>
       </BrowserRouter>
     </QueryProvider>

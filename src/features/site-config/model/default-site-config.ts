@@ -1,3 +1,4 @@
+import { createServiceCard } from './service-card-defaults'
 import type { SiteConfig } from './types'
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
@@ -12,34 +13,37 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   heroBadge: 'Sin prisas, sin tabúes, con evidencia',
   heroTitle: 'Salud femenina con calma y ciencia',
   heroDescription:
-    'Consulta ginecológica, control prenatal, planificación familiar y tamizajes. Te escuchamos, te explicamos con claridad y armamos un plan contigo — sí, también para esas dudas que Google no debería responder.',
+    'Consulta ginecológica, control prenatal, planificación familiar y tamizajes. Te escuchamos, te explicamos con claridad y armamos un plan contigo.',
   heroCaption:
     'Ambiente acogedor, confidencialidad real y tiempo de consulta para lo que de verdad te preocupa.',
 
-  servicesTitle: '¿En qué te acompañamos?',
+  servicesTitle: 'Nuestros servicios',
   servicesSubtitle:
-    'Prevención, diagnóstico y seguimiento en cada etapa: adolescencia, fertilidad, embarazo y menopausia. Cero lenguaje médico innecesario.',
+    'Atención integral en cada etapa de la vida: prevención, diagnóstico, embarazo y bienestar femenino.',
   serviceCards: [
-    {
-      title: 'Ginecología general',
+    createServiceCard(0, {
+      title: 'Servicio 1',
       description:
-        'Chequeo anual, citología, ecografía pélvica, infecciones, dolor menstrual y menopausia. Cada estudio con contexto, no solo con resultados en papel.',
-    },
-    {
-      title: 'Control prenatal',
+        'Chequeo anual, citología, ecografía pélvica, infecciones, dolor menstrual y menopausia.',
+      icon: 'stethoscope',
+    }),
+    createServiceCard(1, {
+      title: 'Servicio 2',
       description:
-        'Seguimiento del embarazo, ecografías, laboratorios y plan de parto. Tu barriga avanza; nosotros llevamos el calendario y las alertas tempranas.',
-    },
-    {
-      title: 'Planificación y fertilidad',
+        'Seguimiento del embarazo, ecografías, laboratorios y plan de parto con acompañamiento continuo.',
+      icon: 'baby',
+    }),
+    createServiceCard(2, {
+      title: 'Servicio 3',
       description:
-        'Anticoncepción, búsqueda de embarazo, FUM y orientación en pareja. Sin sermones: opciones reales según tu edad, salud y proyectos de vida.',
-    },
+        'Anticoncepción, búsqueda de embarazo y orientación según su edad, salud y proyectos de vida.',
+      icon: 'heart',
+    }),
   ],
 
   ctaTitle: '¿Agendamos tu próxima cita?',
   ctaDescription:
-    'Accede al panel médico de la demo para explorar agenda, pacientes y consultas. En este entorno el acceso es inmediato con tu correo — ideal para probar el flujo clínico.',
+    'Accede al panel médico para explorar agenda, pacientes y consultas.',
 
   footerNotice: 'GineCare · Plataforma demo · No reemplaza atención médica presencial',
 }
