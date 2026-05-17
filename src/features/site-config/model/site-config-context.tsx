@@ -2,56 +2,90 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 
 import { DEFAULT_SITE_CONFIG } from './default-site-config'
-import type { SiteConfig } from './types'
+import {
+  cloneServiceCard,
+  createServiceCard,
+  createServiceId,
+} from './service-card-defaults'
+import { serviceIconFallback } from './service-icons'
+import {
+  fetchSiteConfig,
+  postSiteConfig,
+  setSiteConfigCache,
+} from './site-config-api'
+import type { ServiceCardConfig, ServiceIconId, SiteConfig } from './types'
+import { MAX_SERVICE_CARDS, MIN_SERVICE_CARDS } from './types'
 
-/** v2: contenido por defecto de landing renovado (mayo 2026). */
-const STORAGE_KEY = 'gine-site-config-v2'
+const STORAGE_KEY = 'gine-site-config-v4'
+const LEGACY_STORAGE_KEYS = [
+  'gine-site-config-v3',
+  'gine-site-config-v2',
+  'gine-site-config-v1',
+]
+const SAVE_DEBOUNCE_MS = 900
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-function mergeWithDefaults(stored: unknown): SiteConfig {
-  const base = DEFAULT_SITE_CONFIG
-  if (!isRecord(stored)) {
-    return { ...base, serviceCards: [...base.serviceCards] as unknown as SiteConfig['serviceCards'] }
+function parseIcon(v: unknown, index: number): ServiceIconId {
+  const valid: ServiceIconId[] = [
+    'stethoscope',
+    'shield',
+    'calendar',
+    'heart',
+    'baby',
+    'sparkles',
+  ]
+  return typeof v === 'string' && valid.includes(v as ServiceIconId)
+    ? (v as ServiceIconId)
+    : serviceIconFallback(index)
+}
+
+function normalizeServiceCards(raw: unknown): ServiceCardConfig[] {
+  const base = DEFAULT_SITE_CONFIG.serviceCards
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return base.map((c) => ({ ...c }))
   }
 
-  const cardsRaw = stored.serviceCards
-  let serviceCards: SiteConfig['serviceCards'] = [...base.serviceCards] as unknown as SiteConfig['serviceCards']
-  if (Array.isArray(cardsRaw) && cardsRaw.length >= 3) {
-    serviceCards = [
-      {
-        title:
-          typeof cardsRaw[0]?.title === 'string' ? cardsRaw[0].title : base.serviceCards[0].title,
-        description:
-          typeof cardsRaw[0]?.description === 'string'
-            ? cardsRaw[0].description
-            : base.serviceCards[0].description,
-      },
-      {
-        title:
-          typeof cardsRaw[1]?.title === 'string' ? cardsRaw[1].title : base.serviceCards[1].title,
-        description:
-          typeof cardsRaw[1]?.description === 'string'
-            ? cardsRaw[1].description
-            : base.serviceCards[1].description,
-      },
-      {
-        title:
-          typeof cardsRaw[2]?.title === 'string' ? cardsRaw[2].title : base.serviceCards[2].title,
-        description:
-          typeof cardsRaw[2]?.description === 'string'
-            ? cardsRaw[2].description
-            : base.serviceCards[2].description,
-      },
-    ] as SiteConfig['serviceCards']
+  const parsed = raw.slice(0, MAX_SERVICE_CARDS).map((item, i) => {
+    const rec = isRecord(item) ? item : {}
+    const fallback = base[i] ?? base[0]
+    return {
+      id:
+        typeof rec.id === 'string' && rec.id
+          ? rec.id
+          : typeof fallback.id === 'string'
+            ? fallback.id
+            : createServiceId(),
+      title: typeof rec.title === 'string' ? rec.title : fallback.title,
+      description:
+        typeof rec.description === 'string' ? rec.description : fallback.description,
+      imageUrl: typeof rec.imageUrl === 'string' && rec.imageUrl ? rec.imageUrl : undefined,
+      icon: parseIcon(rec.icon, i),
+    }
+  })
+
+  return parsed.length >= MIN_SERVICE_CARDS
+    ? parsed
+    : base.map((c) => ({ ...c }))
+}
+
+export function mergeWithDefaults(stored: unknown): SiteConfig {
+  const base = DEFAULT_SITE_CONFIG
+  if (!isRecord(stored)) {
+    return {
+      ...base,
+      serviceCards: base.serviceCards.map((c) => ({ ...c })),
+    }
   }
 
   const str = (k: keyof SiteConfig): string => {
@@ -72,39 +106,50 @@ function mergeWithDefaults(stored: unknown): SiteConfig {
     heroCaption: str('heroCaption'),
     servicesTitle: str('servicesTitle'),
     servicesSubtitle: str('servicesSubtitle'),
-    serviceCards,
+    serviceCards: normalizeServiceCards(stored.serviceCards),
     ctaTitle: str('ctaTitle'),
     ctaDescription: str('ctaDescription'),
     footerNotice: str('footerNotice'),
   }
 }
 
-function loadConfig(): SiteConfig {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      return {
-        ...DEFAULT_SITE_CONFIG,
-        serviceCards: [...DEFAULT_SITE_CONFIG.serviceCards] as unknown as SiteConfig['serviceCards'],
+function loadConfigFromLocal(): SiteConfig {
+  const keys = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const config = mergeWithDefaults(JSON.parse(raw) as unknown)
+      if (key !== STORAGE_KEY) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+        } catch {
+          /* ignore */
+        }
       }
+      return config
+    } catch {
+      continue
     }
-    return mergeWithDefaults(JSON.parse(raw) as unknown)
+  }
+  return {
+    ...DEFAULT_SITE_CONFIG,
+    serviceCards: DEFAULT_SITE_CONFIG.serviceCards.map((c) => ({ ...c })),
+  }
+}
+
+function persistLocal(next: SiteConfig) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   } catch {
-    return {
-      ...DEFAULT_SITE_CONFIG,
-      serviceCards: [...DEFAULT_SITE_CONFIG.serviceCards] as unknown as SiteConfig['serviceCards'],
-    }
+    /* ignore quota */
   }
 }
 
 function cloneConfig(c: SiteConfig): SiteConfig {
   return {
     ...c,
-    serviceCards: [
-      { ...c.serviceCards[0] },
-      { ...c.serviceCards[1] },
-      { ...c.serviceCards[2] },
-    ] as SiteConfig['serviceCards'],
+    serviceCards: c.serviceCards.map((card) => ({ ...card })),
   }
 }
 
@@ -114,13 +159,8 @@ function applyPatch(prev: SiteConfig, patch: Partial<SiteConfig>): SiteConfig {
   for (const key of keys) {
     const v = patch[key]
     if (v === undefined) continue
-    if (key === 'serviceCards') {
-      const p = patch.serviceCards!
-      next.serviceCards = [
-        { ...next.serviceCards[0], ...p[0] },
-        { ...next.serviceCards[1], ...p[1] },
-        { ...next.serviceCards[2], ...p[2] },
-      ] as SiteConfig['serviceCards']
+    if (key === 'serviceCards' && Array.isArray(v)) {
+      next.serviceCards = normalizeServiceCards(v)
       continue
     }
     ;(next as Record<string, unknown>)[key as string] = v
@@ -130,24 +170,75 @@ function applyPatch(prev: SiteConfig, patch: Partial<SiteConfig>): SiteConfig {
 
 type SiteConfigContextValue = {
   config: SiteConfig
+  loading: boolean
+  syncing: boolean
   updateConfig: (patch: Partial<SiteConfig>) => void
-  updateServiceCard: (
-    index: 0 | 1 | 2,
-    patch: Partial<{ title: string; description: string }>,
-  ) => void
-  resetConfig: () => void
+  updateServiceCard: (index: number, patch: Partial<ServiceCardConfig>) => void
+  addServiceCard: () => void
+  removeServiceCard: (index: number) => void
+  duplicateServiceCard: (index: number) => void
+  moveServiceCard: (index: number, direction: 'up' | 'down') => void
+  resetConfig: () => Promise<void>
 }
 
 const SiteConfigContext = createContext<SiteConfigContextValue | null>(null)
 
 export function SiteConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(() => loadConfig())
+  const [config, setConfig] = useState<SiteConfig>(() => loadConfigFromLocal())
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const persist = useCallback((next: SiteConfig) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    } catch {
-      /* ignore quota */
+  const scheduleRemoteSave = useCallback((next: SiteConfig) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      setSyncing(true)
+      postSiteConfig(next)
+        .then((saved) => {
+          const normalized = mergeWithDefaults(saved)
+          setSiteConfigCache(normalized)
+        })
+        .catch(() => {
+          /* se mantiene copia local */
+        })
+        .finally(() => setSyncing(false))
+    }, SAVE_DEBOUNCE_MS)
+  }, [])
+
+  const persist = useCallback(
+    (next: SiteConfig) => {
+      persistLocal(next)
+      setSiteConfigCache(next)
+      scheduleRemoteSave(next)
+    },
+    [scheduleRemoteSave],
+  )
+
+  useEffect(() => {
+    let active = true
+    fetchSiteConfig()
+      .then((data) => {
+        if (!active) return
+        const normalized = mergeWithDefaults(data)
+        setConfig(normalized)
+        persistLocal(normalized)
+        setSiteConfigCache(normalized)
+      })
+      .catch(() => {
+        if (!active) return
+        setConfig(loadConfigFromLocal())
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
   }, [])
 
@@ -163,14 +254,11 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
   )
 
   const updateServiceCard = useCallback(
-    (index: 0 | 1 | 2, patch: Partial<{ title: string; description: string }>) => {
+    (index: number, patch: Partial<ServiceCardConfig>) => {
       setConfig((prev) => {
         const next = cloneConfig(prev)
-        next.serviceCards = [
-          index === 0 ? { ...next.serviceCards[0], ...patch } : { ...next.serviceCards[0] },
-          index === 1 ? { ...next.serviceCards[1], ...patch } : { ...next.serviceCards[1] },
-          index === 2 ? { ...next.serviceCards[2], ...patch } : { ...next.serviceCards[2] },
-        ] as SiteConfig['serviceCards']
+        if (index < 0 || index >= next.serviceCards.length) return prev
+        next.serviceCards[index] = { ...next.serviceCards[index], ...patch }
         persist(next)
         return next
       })
@@ -178,22 +266,100 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
     [persist],
   )
 
-  const resetConfig = useCallback(() => {
-    const fresh: SiteConfig = {
-      ...DEFAULT_SITE_CONFIG,
-      serviceCards: [...DEFAULT_SITE_CONFIG.serviceCards] as unknown as SiteConfig['serviceCards'],
-    }
-    setConfig(fresh)
+  const addServiceCard = useCallback(() => {
+    setConfig((prev) => {
+      if (prev.serviceCards.length >= MAX_SERVICE_CARDS) return prev
+      const next = cloneConfig(prev)
+      const i = next.serviceCards.length
+      next.serviceCards.push(createServiceCard(i))
+      persist(next)
+      return next
+    })
+  }, [persist])
+
+  const removeServiceCard = useCallback(
+    (index: number) => {
+      setConfig((prev) => {
+        if (prev.serviceCards.length <= MIN_SERVICE_CARDS) return prev
+        if (index < 0 || index >= prev.serviceCards.length) return prev
+        const next = cloneConfig(prev)
+        next.serviceCards.splice(index, 1)
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
+
+  const duplicateServiceCard = useCallback(
+    (index: number) => {
+      setConfig((prev) => {
+        if (prev.serviceCards.length >= MAX_SERVICE_CARDS) return prev
+        if (index < 0 || index >= prev.serviceCards.length) return prev
+        const next = cloneConfig(prev)
+        const copy = cloneServiceCard(prev.serviceCards[index], next.serviceCards.length)
+        next.serviceCards.splice(index + 1, 0, copy)
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
+
+  const moveServiceCard = useCallback(
+    (index: number, direction: 'up' | 'down') => {
+      setConfig((prev) => {
+        const target = direction === 'up' ? index - 1 : index + 1
+        if (index < 0 || index >= prev.serviceCards.length) return prev
+        if (target < 0 || target >= prev.serviceCards.length) return prev
+        const next = cloneConfig(prev)
+        const [item] = next.serviceCards.splice(index, 1)
+        next.serviceCards.splice(target, 0, item)
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
+
+  const resetConfig = useCallback(async () => {
+    setSyncing(true)
     try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      /* noop */
+      const saved = await postSiteConfig({ reset: true })
+      const fresh = mergeWithDefaults(saved)
+      setConfig(fresh)
+      persistLocal(fresh)
+      setSiteConfigCache(fresh)
+    } finally {
+      setSyncing(false)
     }
   }, [])
 
   const value = useMemo(
-    () => ({ config, updateConfig, updateServiceCard, resetConfig }),
-    [config, updateConfig, updateServiceCard, resetConfig],
+    () => ({
+      config,
+      loading,
+      syncing,
+      updateConfig,
+      updateServiceCard,
+      addServiceCard,
+      removeServiceCard,
+      duplicateServiceCard,
+      moveServiceCard,
+      resetConfig,
+    }),
+    [
+      config,
+      loading,
+      syncing,
+      updateConfig,
+      updateServiceCard,
+      addServiceCard,
+      removeServiceCard,
+      duplicateServiceCard,
+      moveServiceCard,
+      resetConfig,
+    ],
   )
 
   return <SiteConfigContext.Provider value={value}>{children}</SiteConfigContext.Provider>

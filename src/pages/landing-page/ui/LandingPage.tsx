@@ -4,22 +4,9 @@ import { motion } from 'framer-motion'
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import { ROUTES } from '@/shared/config/routes'
 import { composeButtonClassName } from '@/widgets/button'
-import { Card } from '@/widgets/card'
+import { LandingServiceCard } from '@/features/site-config/ui/molecules/LandingServiceCard'
 import { PageHeader } from '@/widgets/header'
-import { 
-  Stethoscope, 
-  ShieldCheck, 
-  CalendarDays, 
-  ArrowRight,
-  Sparkles,
-  Heart
-} from 'lucide-react'
-
-const serviceIcons = [
-  <Stethoscope key="a" className="h-6 w-6" />, 
-  <ShieldCheck key="b" className="h-6 w-6" />, 
-  <CalendarDays key="c" className="h-6 w-6" />
-]
+import { ArrowRight, CalendarDays, Heart, Sparkles } from 'lucide-react'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -155,9 +142,12 @@ export function LandingPage() {
           </motion.div>
         </section>
 
-        <section id="servicios" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative">
-          <div className="mx-auto max-w-2xl text-center mb-20">
-            <h2 className="font-display text-4xl font-bold tracking-tight text-clinical-900 sm:text-5xl mb-6">
+        <section id="servicios" className="relative mx-auto max-w-7xl scroll-mt-24 px-6 py-24 sm:py-32">
+          <div className="mx-auto mb-16 max-w-2xl text-center sm:mb-20">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-primary-600/70">
+              Servicios
+            </p>
+            <h2 className="mb-6 font-display text-4xl font-bold tracking-tight text-clinical-900 sm:text-5xl">
               {config.servicesTitle}
             </h2>
             <div className="h-1.5 w-24 bg-accent-300 mx-auto rounded-full mb-6" />
@@ -166,21 +156,22 @@ export function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {[0, 1, 2].map((i) => (
+          <div
+            className={
+              config.serviceCards.length <= 2
+                ? 'mx-auto grid max-w-4xl gap-8 sm:grid-cols-2'
+                : 'grid gap-8 sm:grid-cols-2 xl:grid-cols-3'
+            }
+          >
+            {config.serviceCards.map((service, i) => (
               <motion.div
-                key={i}
+                key={service.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <Card
-                  title={config.serviceCards[i].title}
-                  description={config.serviceCards[i].description}
-                  icon={serviceIcons[i]}
-                  className="h-full"
-                />
+                <LandingServiceCard service={service} />
               </motion.div>
             ))}
           </div>
