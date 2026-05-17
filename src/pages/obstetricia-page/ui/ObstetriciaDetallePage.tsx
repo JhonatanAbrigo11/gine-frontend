@@ -58,9 +58,8 @@ const TABS = [
    { id: 'resumen', label: 'Resumen', icon: History },
    { id: 'ingreso', label: 'Historia Prenatal', icon: ClipboardList },
    { id: 'controles', label: 'Controles', icon: Activity },
-   { id: 'estudios', label: 'Exámenes y Ecografías', icon: Microscope },
+   { id: 'estudios', label: 'Exámenes y Resultados', icon: Microscope },
    { id: 'curvas', label: 'Curvas', icon: TrendingUp },
-   { id: 'documentos', label: 'Órdenes y Resultados', icon: FileText },
    { id: 'alertas', label: 'Alertas', icon: AlertTriangle },
 ]
 
@@ -167,27 +166,9 @@ export function ObstetriciaDetallePage() {
                      </Button>
                   )}
 
-                  {activeTab === 'controles' && (
-                     <Button 
-                        onClick={() => setIsModalOpen(true)} 
-                        variant="primary" 
-                        className="h-12 px-6 rounded-2xl shadow-xl shadow-primary-100 font-bold flex items-center gap-2"
-                     >
-                        <Plus className="h-4 w-4" />
-                        Agregar Control
-                     </Button>
-                  )}
 
-                  {activeTab === 'ecografias' && (
-                     <Button 
-                        onClick={() => window.dispatchEvent(new CustomEvent('open-ecografia-modal'))} 
-                        variant="primary" 
-                        className="h-12 px-6 rounded-2xl shadow-xl shadow-primary-100 font-bold flex items-center gap-2"
-                     >
-                        <Plus className="h-4 w-4" />
-                        Agregar Ecografía
-                     </Button>
-                  )}
+
+
                </div>
             </div>
 
@@ -249,7 +230,6 @@ export function ObstetriciaDetallePage() {
                   {activeTab === 'controles' && <ControlesTab controles={controles} onOpenModal={() => setIsModalOpen(true)} />}
                   {activeTab === 'estudios' && <EstudiosTab pregnancyId={pregnancy.id} patName={patName} egSemanas={egSemanas} patientId={pregnancy.patientId} />}
                   {activeTab === 'curvas' && <CurvasTab controles={controles} patientName={patName} />}
-                  {activeTab === 'documentos' && <DocumentosTab patientId={pregnancy.patientId} />}
                   {activeTab === 'alertas' && <AlertasTab pregnancy={pregnancy} controles={controles} />}
                </motion.div>
             </AnimatePresence>
@@ -272,53 +252,43 @@ export function ObstetriciaDetallePage() {
 
 function ResumenTab({ controles, egSemanas, latestControl }: { controles: PrenatalControl[], egSemanas: string, latestControl?: PrenatalControl }) {
    return (
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
-         <div className="space-y-8">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-6">
-               <InfoCard title="Semana Gestacional" value={egSemanas} sub="Semanas" icon={<TrendingUp />} />
-               <InfoCard title="Peso Actual" value={latestControl?.maternalWeight ? `${latestControl.maternalWeight} kg` : 'N/D'} sub="Kilogramos" icon={<Activity />} />
-               <InfoCard title="Presión Arterial" value={latestControl?.bloodPressure || 'N/D'} sub="mmHg" icon={<Heart />} />
-            </div>
-
-            {/* Timeline Prenatal */}
-            <section className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium">
-               <div className="flex items-center gap-3 mb-8">
-                  <div className="h-10 w-10 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center"><History className="h-5 w-5" /></div>
-                  <h3 className="text-xl font-black text-clinical-900 tracking-tight">Timeline Obstétrico</h3>
-               </div>
-
-               {controles.length === 0 ? (
-                  <p className="text-sm text-clinical-400 font-medium text-center py-12">Aún no hay controles registrados para este embarazo.</p>
-               ) : (
-                  <div className="relative space-y-12 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-primary-100">
-                     {controles.map((c, idx) => (
-                        <TimelineItem
-                           key={c.id}
-                           week={String(c.gestationalAge)}
-                           title={`Control prenatal - EG: ${c.gestationalAge} Sem.`}
-                           date={new Date(c.controlDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
-                           events={[
-                              c.maternalWeight ? `Peso: ${c.maternalWeight} kg` : null,
-                              c.fetalHeartRate ? `FCF: ${c.fetalHeartRate} lpm` : null,
-                              c.bloodPressure ? `T/A: ${c.bloodPressure}` : null,
-                              c.uterineHeight ? `AU: ${c.uterineHeight} cm` : null,
-                           ].filter(Boolean) as string[]}
-                           status={idx === 0 ? 'current' : 'completed'}
-                        />
-                     ))}
-                  </div>
-               )}
-            </section>
+      <div className="space-y-8">
+         {/* Summary Cards */}
+         <div className="grid grid-cols-3 gap-6">
+            <InfoCard title="Semana Gestacional" value={egSemanas} sub="Semanas" icon={<TrendingUp />} />
+            <InfoCard title="Peso Actual" value={latestControl?.maternalWeight ? `${latestControl.maternalWeight} kg` : 'N/D'} sub="Kilogramos" icon={<Activity />} />
+            <InfoCard title="Presión Arterial" value={latestControl?.bloodPressure || 'N/D'} sub="mmHg" icon={<Heart />} />
          </div>
 
-         {/* Sidebar: Obstetric Calendar */}
-         <aside className="space-y-8">
-            <section className="bg-white rounded-[2.5rem] p-8 border border-clinical-100 shadow-premium flex flex-col items-center">
-               <h3 className="text-sm font-black text-clinical-900 uppercase tracking-widest mb-6">Calendario Obstétrico</h3>
-               <ObstetricCalendar />
-            </section>
-         </aside>
+         {/* Timeline Prenatal */}
+         <section className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium">
+            <div className="flex items-center gap-3 mb-8">
+               <div className="h-10 w-10 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center"><History className="h-5 w-5" /></div>
+               <h3 className="text-xl font-black text-clinical-900 tracking-tight">Timeline Obstétrico</h3>
+            </div>
+
+            {controles.length === 0 ? (
+               <p className="text-sm text-clinical-400 font-medium text-center py-12">Aún no hay controles registrados para este embarazo.</p>
+            ) : (
+               <div className="relative space-y-12 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-primary-100">
+                  {controles.map((c, idx) => (
+                     <TimelineItem
+                        key={c.id}
+                        week={String(c.gestationalAge)}
+                        title={`Control prenatal - EG: ${c.gestationalAge} Sem.`}
+                        date={new Date(c.controlDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        events={[
+                           c.maternalWeight ? `Peso: ${c.maternalWeight} kg` : null,
+                           c.fetalHeartRate ? `FCF: ${c.fetalHeartRate} lpm` : null,
+                           c.bloodPressure ? `T/A: ${c.bloodPressure}` : null,
+                           c.uterineHeight ? `AU: ${c.uterineHeight} cm` : null,
+                        ].filter(Boolean) as string[]}
+                        status={idx === 0 ? 'current' : 'completed'}
+                     />
+                  ))}
+               </div>
+            )}
+         </section>
       </div>
    )
 }
@@ -938,111 +908,42 @@ function ControlesTab({ controles, onOpenModal }: { controles: PrenatalControl[]
    )
 }
 
-/* ==================================================
-   ESTUDIOS E IMAGENOLOGIA TAB
-   ================================================== */
 function EstudiosTab({ pregnancyId, patName, egSemanas, patientId }: { pregnancyId: string, patName: string, egSemanas: string, patientId: string }) {
    const navigate = useNavigate()
-   const { data: echographies = [], refetch } = usePregnancyEchographies(pregnancyId)
-   const addEchography = useAddEchography(pregnancyId)
    const { showToast } = useToast()
    
-   const [isModalOpen, setIsModalOpen] = useState(false)
+   const [docs, setDocs] = useState<any[]>([])
+   const [orders, setOrders] = useState<MedicalOrder[]>([])
+   const [loading, setLoading] = useState(true)
+   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null)
+   const [showResultsModal, setShowResultsModal] = useState(false)
 
-   useEffect(() => {
-      const listener = () => setIsModalOpen(true)
-      window.addEventListener('open-ecografia-modal', listener)
-      return () => window.removeEventListener('open-ecografia-modal', listener)
-   }, [])
-   const [formData, setFormData] = useState({
-      studyName: 'Ecografía Morfológica',
-      studyType: 'morfologica',
-      studyDate: new Date().toISOString().split('T')[0],
-      gestationalAge: egSemanas,
-      doctorName: 'Dr. Andres Morquecho',
-      report: '',
-   })
-
-   const handleInputChange = (field: string, value: string) => {
-      setFormData(prev => ({ ...prev, [field]: value }))
-   }
-
-   const handleSave = async (e: React.FormEvent) => {
-      e.preventDefault()
+   const fetchData = async () => {
       try {
-         await addEchography.mutateAsync({
-            studyDate: new Date(formData.studyDate).toISOString(),
-            studyType: formData.studyType as any,
-            studyName: formData.studyName,
-            report: formData.report,
-            doctorName: formData.doctorName,
-            gestationalAge: parseFloat(formData.gestationalAge) || parseFloat(egSemanas),
-         })
-         showToast('Informe de ecografía registrado con éxito', 'success')
-         setIsModalOpen(false)
-         setFormData(prev => ({ ...prev, report: '' }))
-         refetch()
-      } catch (err: any) {
-         showToast(err.message || 'Error al guardar ecografía', 'error')
+         setLoading(true)
+         const [docsRes, ordersRes] = await Promise.all([
+            fetch(`${API_URL}/patients/${patientId}/documents?limit=20`),
+            orderService.getPatientOrders(patientId)
+         ])
+         if (docsRes.ok) {
+            const data = await docsRes.json()
+            setDocs(data.data || [])
+         }
+         setOrders(ordersRes || [])
+      } catch (err) {
+         console.error('Error fetching data:', err)
+      } finally {
+         setLoading(false)
       }
    }
 
-   const handlePrintEco = (eco: any) => {
-      const printWindow = window.open('', '_blank')
-      if (!printWindow) return
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Informe de Ecografía Obstétrica</title>
-            <style>
-              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-              body { font-family: 'Inter', sans-serif; padding: 45px; color: #1e293b; line-height: 1.6; }
-              .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; text-align: center; }
-              .header h1 { margin: 0; font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-              .header p { margin: 5px 0 0 0; font-size: 11px; color: #4f46e5; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
-              .patient-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 35px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; }
-              .info-item { font-size: 13px; font-weight: 600; color: #475569; }
-              .info-item span { font-weight: 800; color: #0f172a; }
-              .report-section { margin-bottom: 35px; }
-              .report-section h3 { font-size: 14px; font-weight: 800; text-transform: uppercase; color: #0f172a; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
-              .report-content { font-size: 14px; font-weight: 500; color: #334155; white-space: pre-wrap; background: #fff; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 16px; min-height: 220px; }
-              .signature-section { margin-top: 100px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-              .signature-line { border-top: 2px solid #94a3b8; width: 260px; margin-bottom: 10px; }
-              .doctor-name { font-size: 14px; font-weight: 800; color: #0f172a; }
-              .doctor-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>CENTRO CLÍNICO GINECO-OBSTÉTRICO PREMIUM</h1>
-              <p>Reporte Oficial de Diagnóstico por Imágenes</p>
-            </div>
-            <div class="patient-info">
-              <div class="info-item">Paciente: <span>${patName}</span></div>
-              <div class="info-item">Fecha del Estudio: <span>${new Date(eco.studyDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-              <div class="info-item">Edad Gestacional: <span>${eco.gestationalAge} Semanas</span></div>
-              <div class="info-item">Tipo de Ecografía: <span>${eco.studyName}</span></div>
-            </div>
-            <div class="report-section">
-              <h3>Hallazgos y Diagnóstico Clínico</h3>
-              <div class="report-content">${eco.report || 'Sin hallazgos clínicos reportados.'}</div>
-            </div>
-            <div class="signature-section">
-              <div class="signature-line"></div>
-              <div class="doctor-name">${eco.doctorName || 'Dr. Andres Morquecho'}</div>
-              <div class="doctor-title">Especialista en Ginecología y Obstetricia</div>
-            </div>
-            <script>
-              window.onload = function() { window.print(); }
-            </script>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-   }
+   useEffect(() => {
+      fetchData()
+   }, [patientId])
 
    return (
       <div className="space-y-8">
+         {/* BOTONES DE ACCIÓN RÁPIDA */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button 
                onClick={() => navigate(`/ordenes/nueva/${patientId}`, { state: { type: 'laboratorio' } })}
@@ -1076,195 +977,130 @@ function EstudiosTab({ pregnancyId, patName, egSemanas, patientId }: { pregnancy
             </button>
          </div>
 
+         {/* ORDENES MEDICAS Y RESULTADOS */}
          <div className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium space-y-8">
             <div className="flex items-center justify-between">
                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><Microscope className="h-5 w-5" /></div>
                   <div>
-                     <h3 className="text-xl font-black text-clinical-900 tracking-tight">Informes Clínicos Propios</h3>
-                     <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">Ecografías realizadas en consulta</p>
+                     <h3 className="text-xl font-black text-clinical-900 tracking-tight">Órdenes Médicas y Resultados</h3>
+                     <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">Gestión de laboratorio e imagenología</p>
                   </div>
                </div>
-               <Button onClick={() => setIsModalOpen(true)} variant="primary" className="h-10 px-6 rounded-xl shadow-lg">
-                  <Plus className="h-4 w-4 mr-2" /> Redactar Informe
-               </Button>
             </div>
 
-         {echographies.length === 0 ? (
-            <div className="p-12 text-center border-2 border-dashed border-clinical-100 rounded-3xl">
-               <p className="text-sm text-clinical-400 font-bold">Aún no hay ecografías registradas para este embarazo.</p>
-               <p className="text-xs text-clinical-350 mt-1">Registra tu primer informe de ecografía haciendo clic en "+ Registrar Ecografía".</p>
-            </div>
-         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               {echographies.map((eco: any) => (
-                  <div key={eco.id} className="p-8 rounded-3xl bg-clinical-50/50 border border-clinical-100 shadow-sm relative overflow-hidden group hover:bg-white hover:shadow-xl transition-all flex flex-col justify-between min-h-[300px]">
-                     <div>
-                        <div className="flex items-start justify-between mb-6">
-                           <div>
-                              <span className="px-3 py-1 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-black uppercase border border-rose-100">
-                                 {new Date(eco.studyDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })} · Sem {eco.gestationalAge}
-                              </span>
-                              <h4 className="text-lg font-black text-clinical-900 mt-3">{eco.studyName}</h4>
+            {loading ? (
+               <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+               </div>
+            ) : orders.length === 0 ? (
+               <p className="text-sm text-clinical-400 font-medium text-center py-12">No hay órdenes médicas generadas para esta paciente.</p>
+            ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {orders.map((order) => (
+                     <div key={order.id} className="p-6 rounded-[2rem] bg-clinical-50/50 border border-clinical-100 flex items-center justify-between group hover:bg-white hover:border-primary-300 transition-all shadow-sm">
+                        <div className="flex items-center gap-4">
+                           <div className={cn(
+                              "h-12 w-12 rounded-2xl flex items-center justify-center transition-all shadow-sm border",
+                              order.status === 'Completado' || (order.status as string) === 'Resultado subido' 
+                                 ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                                 : "bg-white text-clinical-400 border-clinical-100 group-hover:bg-primary-50 group-hover:text-primary-600"
+                           )}>
+                              {order.orderType?.slug === 'ecografia' ? <Baby className="h-6 w-6" /> : <Microscope className="h-6 w-6" />}
                            </div>
-                           <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">{eco.doctorName}</span>
+                           <div>
+                              <p className="text-sm font-black text-clinical-900 leading-none mb-1.5 line-clamp-1">
+                                 {order.orderType?.name} - {order.secuencial}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                 <span className={cn(
+                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border",
+                                    order.status === 'Completado' || (order.status as string) === 'Resultado subido'
+                                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                       : "bg-amber-50 text-amber-700 border-amber-200"
+                                 )}>
+                                    {order.status === 'Pendiente' ? 'Esperando Resultados' : 'Resultados Listos'}
+                                 </span>
+                              </div>
+                           </div>
                         </div>
-
-                        <div className="p-5 rounded-2xl bg-white border border-clinical-100 mb-6">
-                           <p className="text-xs font-semibold text-clinical-850 leading-relaxed italic">"{eco.report}"</p>
-                        </div>
-                     </div>
-
-                     <div className="flex gap-2">
                         <Button 
-                           onClick={() => handlePrintEco(eco)}
-                           variant="primary" 
-                           className="flex-1 h-10 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2"
+                           variant={order.status === 'Completado' || (order.status as string) === 'Resultado subido' ? 'primary' : 'secondary'}
+                           className="h-10 px-5 rounded-xl text-xs font-bold shrink-0 shadow-sm"
+                           onClick={() => {
+                              setSelectedOrder(order)
+                              setShowResultsModal(true)
+                           }}
                         >
-                           <Printer className="h-4 w-4" /> Imprimir Informe
+                           Resultados
                         </Button>
                      </div>
-                  </div>
-               ))}
-            </div>
-         )}
-
-         {/* Registrar Ecografia Modal */}
-         <AnimatePresence>
-            {isModalOpen && (
-               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-clinical-950/40 backdrop-blur-sm">
-                  <motion.div 
-                     initial={{ opacity: 0, scale: 0.95 }}
-                     animate={{ opacity: 1, scale: 1 }}
-                     exit={{ opacity: 0, scale: 0.95 }}
-                     className="bg-white rounded-[2.5rem] border border-clinical-100 shadow-premium w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
-                  >
-                     <header className="px-8 py-6 border-b border-clinical-100 flex items-center justify-between bg-clinical-50/20">
-                        <div className="flex items-center gap-3">
-                           <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center"><Baby className="h-5 w-5" /></div>
-                           <div>
-                              <h3 className="text-lg font-black text-clinical-900 leading-tight">Generar Informe de Ecografía</h3>
-                              <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">Informe Clínico del Paciente</p>
-                           </div>
-                        </div>
-                        <button onClick={() => setIsModalOpen(false)} className="h-8 w-8 rounded-xl hover:bg-clinical-50 text-clinical-400 hover:text-clinical-900 transition-all flex items-center justify-center">
-                           <X className="h-5 w-5" />
-                        </button>
-                     </header>
-
-                     <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-8 space-y-6">
-                        <div className="grid grid-cols-2 gap-6">
-                           <div>
-                              <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2 block">Nombre de Paciente</label>
-                              <input 
-                                 type="text" 
-                                 value={patName}
-                                 disabled
-                                 className="w-full h-12 rounded-2xl border border-clinical-200 bg-clinical-50/50 px-5 text-sm font-bold text-clinical-500 outline-none"
-                              />
-                           </div>
-                           <div>
-                              <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2 block">Fecha de Estudio</label>
-                              <input 
-                                 type="date" 
-                                 value={formData.studyDate}
-                                 onChange={e => handleInputChange('studyDate', e.target.value)}
-                                 className="w-full h-12 rounded-2xl border border-clinical-200 bg-white px-5 text-sm font-bold text-clinical-900 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-                                 required
-                              />
-                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                           <div>
-                              <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2 block">Estudio / Tipo</label>
-                              <select 
-                                 value={formData.studyType}
-                                 onChange={e => {
-                                    const val = e.target.value
-                                    const names = {
-                                       morfologica: 'Ecografía Morfológica',
-                                       tamizaje: 'Ecografía de Tamizaje (Screening)',
-                                       doppler: 'Doppler Fetal',
-                                       biofisico: 'Perfil Biofísico Fetal',
-                                       transvaginal: 'Ecografía Transvaginal Obstétrica'
-                                    }
-                                    setFormData(prev => ({
-                                       ...prev,
-                                       studyType: val,
-                                       studyName: names[val as keyof typeof names] || prev.studyName
-                                    }))
-                                 }}
-                                 className="w-full h-12 rounded-2xl border border-clinical-200 bg-white px-5 text-sm font-bold text-clinical-900 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-                              >
-                                 <option value="morfologica">Ecografía Morfológica</option>
-                                 <option value="tamizaje">Ecografía de Tamizaje (Screening)</option>
-                                 <option value="doppler">Doppler Fetal</option>
-                                 <option value="biofisico">Perfil Biofísico Fetal</option>
-                                 <option value="transvaginal">Ecografía Transvaginal</option>
-                              </select>
-                           </div>
-                           <div>
-                              <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2 block">Edad Gestacional (Semanas)</label>
-                              <input 
-                                 type="number" 
-                                 step="0.1"
-                                 value={formData.gestationalAge}
-                                 onChange={e => handleInputChange('gestationalAge', e.target.value)}
-                                 className="w-full h-12 rounded-2xl border border-clinical-200 bg-white px-5 text-sm font-bold text-clinical-900 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-                                 placeholder="Ej: 20.1"
-                                 required
-                              />
-                           </div>
-                        </div>
-
-                        <div>
-                           <label className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2 block">Informe de Diagnóstico por Imágenes / Hallazgos</label>
-                           <textarea 
-                              rows={5}
-                              value={formData.report}
-                              onChange={e => handleInputChange('report', e.target.value)}
-                              className="w-full rounded-2xl border border-clinical-200 bg-white p-5 text-sm font-semibold text-clinical-900 outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-                              placeholder="Describe aquí los hallazgos ecográficos, volumen de líquido amniótico, inserción placentaria, FCF, presentación, biometría fetal, etc..."
-                              required
-                           />
-                        </div>
-
-                        {/* Signature area placeholder */}
-                        <div className="border border-clinical-100 bg-clinical-50/30 p-6 rounded-3xl space-y-4">
-                           <h4 className="text-xs font-black text-clinical-900 uppercase tracking-wider">Firma y Sello del Profesional</h4>
-                           <div className="grid grid-cols-2 gap-6 items-center">
-                              <div>
-                                 <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest mb-1.5 block">Médico Responsable</label>
-                                 <input 
-                                    type="text" 
-                                    value={formData.doctorName}
-                                    onChange={e => handleInputChange('doctorName', e.target.value)}
-                                    className="w-full h-10 rounded-xl border border-clinical-200 bg-white px-4 text-xs font-bold text-clinical-900 outline-none"
-                                    required
-                                 />
-                              </div>
-                              <div className="border-2 border-dashed border-clinical-200 rounded-2xl h-24 flex flex-col items-center justify-center text-center bg-white">
-                                 <span className="text-[9px] font-black text-clinical-400 uppercase tracking-widest">Firma Autorizada</span>
-                                 <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mt-1">FIRMA ELECTRÓNICA VÁLIDA</span>
-                              </div>
-                           </div>
-                        </div>
-
-                        <footer className="pt-4 border-t border-clinical-100 flex items-center justify-end gap-3">
-                           <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="px-6 rounded-2xl">
-                              Cancelar
-                           </Button>
-                           <Button type="submit" variant="primary" className="px-8 rounded-2xl shadow-xl shadow-primary-200 min-w-[140px]" disabled={addEchography.isPending}>
-                              {addEchography.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Guardar Informe
-                           </Button>
-                        </footer>
-                     </form>
-                  </motion.div>
+                  ))}
                </div>
             )}
-         </AnimatePresence>
          </div>
+
+         {/* DOCUMENTOS PRENATALES */}
+         <div className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium space-y-8">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-primary-50 text-primary-500 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
+                  <h3 className="text-xl font-black text-clinical-900 tracking-tight">Expediente de Documentos PDF</h3>
+               </div>
+            </div>
+
+            {loading ? (
+               <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+               </div>
+            ) : docs.length === 0 ? (
+               <p className="text-sm text-clinical-400 font-medium text-center py-12">No hay documentos pdf registrados para esta paciente.</p>
+            ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {docs.map((doc) => (
+                     <div key={doc.id} className="p-6 rounded-[2rem] bg-clinical-50/50 border border-clinical-100 hover:bg-white hover:shadow-lg transition-all group flex flex-col justify-between h-48">
+                        <div className="flex items-start justify-between">
+                           <div className="h-12 w-12 rounded-2xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center group-hover:text-primary-600 transition-all shadow-sm">
+                              <FileText className="h-6 w-6" />
+                           </div>
+                           <div className="flex gap-2">
+                              <button 
+                                 onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
+                                 className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all shadow-sm"
+                              >
+                                 <Eye className="h-4 w-4" />
+                              </button>
+                              <button 
+                                 onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
+                                 className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all shadow-sm"
+                              >
+                                 <Download className="h-4 w-4" />
+                              </button>
+                           </div>
+                        </div>
+                        <div>
+                           <h4 className="text-sm font-black text-clinical-900 line-clamp-1 group-hover:text-primary-600 transition-colors">{doc.name}</h4>
+                           <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-1">Registrado el {new Date(doc.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            )}
+         </div>
+
+         {selectedOrder && (
+            <ResultsManagerModal
+               isOpen={showResultsModal}
+               onClose={() => {
+                  setShowResultsModal(false)
+                  setTimeout(() => setSelectedOrder(null), 200)
+               }}
+               onUpdate={() => {
+                  orderService.getPatientOrders(patientId).then(setOrders)
+               }}
+               order={selectedOrder}
+            />
+         )}
       </div>
    )
 }
@@ -1437,167 +1273,7 @@ function CurvasTab({ controles, patientName }: { controles: PrenatalControl[], p
    )
 }
 
-/* ==================================================
-   DOCUMENTOS TAB
-   ================================================== */
-function DocumentosTab({ patientId }: { patientId: string }) {
-   const [docs, setDocs] = useState<any[]>([])
-   const [orders, setOrders] = useState<MedicalOrder[]>([])
-   const [loading, setLoading] = useState(true)
-   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null)
-   const [showResultsModal, setShowResultsModal] = useState(false)
 
-   useEffect(() => {
-      const fetchData = async () => {
-         try {
-            setLoading(true)
-            const [docsRes, ordersRes] = await Promise.all([
-               fetch(`${API_URL}/patients/${patientId}/documents?limit=20`),
-               orderService.getPatientOrders(patientId)
-            ])
-            if (docsRes.ok) {
-               const data = await docsRes.json()
-               setDocs(data.data || [])
-            }
-            setOrders(ordersRes || [])
-         } catch (err) {
-            console.error('Error fetching data:', err)
-         } finally {
-            setLoading(false)
-         }
-      }
-      fetchData()
-   }, [patientId])
-
-   return (
-      <div className="space-y-8">
-         {/* ORDENES MEDICAS Y RESULTADOS */}
-         <div className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium space-y-8">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><Microscope className="h-5 w-5" /></div>
-                  <div>
-                     <h3 className="text-xl font-black text-clinical-900 tracking-tight">Órdenes Médicas y Resultados</h3>
-                     <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">Gestión de laboratorio e imagenología</p>
-                  </div>
-               </div>
-            </div>
-
-            {loading ? (
-               <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
-               </div>
-            ) : orders.length === 0 ? (
-               <p className="text-sm text-clinical-400 font-medium text-center py-12">No hay órdenes médicas generadas para esta paciente.</p>
-            ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {orders.map((order) => (
-                     <div key={order.id} className="p-6 rounded-[2rem] bg-clinical-50/50 border border-clinical-100 flex items-center justify-between group hover:bg-white hover:border-primary-300 transition-all shadow-sm">
-                        <div className="flex items-center gap-4">
-                           <div className={cn(
-                              "h-12 w-12 rounded-2xl flex items-center justify-center transition-all shadow-sm border",
-                              order.status === 'Completado' || (order.status as string) === 'Resultado subido' 
-                                 ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                                 : "bg-white text-clinical-400 border-clinical-100 group-hover:bg-primary-50 group-hover:text-primary-600"
-                           )}>
-                              {order.orderType?.slug === 'ecografia' ? <Baby className="h-6 w-6" /> : <Microscope className="h-6 w-6" />}
-                           </div>
-                           <div>
-                              <p className="text-sm font-black text-clinical-900 leading-none mb-1.5 line-clamp-1">
-                                 {order.orderType?.name} - {order.secuencial}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                 <span className={cn(
-                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border",
-                                    order.status === 'Completado' || (order.status as string) === 'Resultado subido'
-                                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                       : "bg-amber-50 text-amber-700 border-amber-200"
-                                 )}>
-                                    {order.status === 'Pendiente' ? 'Esperando Resultados' : 'Resultados Listos'}
-                                 </span>
-                              </div>
-                           </div>
-                        </div>
-                        <Button 
-                           variant={order.status === 'Completado' || (order.status as string) === 'Resultado subido' ? 'primary' : 'secondary'}
-                           className="h-10 px-5 rounded-xl text-xs font-bold shrink-0 shadow-sm"
-                           onClick={() => {
-                              setSelectedOrder(order)
-                              setShowResultsModal(true)
-                           }}
-                        >
-                           Resultados
-                        </Button>
-                     </div>
-                  ))}
-               </div>
-            )}
-         </div>
-
-         {/* DOCUMENTOS PRENATALES */}
-         <div className="bg-white rounded-[2.5rem] p-10 border border-clinical-100 shadow-premium space-y-8">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-primary-50 text-primary-500 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
-                  <h3 className="text-xl font-black text-clinical-900 tracking-tight">Expediente de Documentos PDF</h3>
-               </div>
-            </div>
-
-            {loading ? (
-               <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
-               </div>
-            ) : docs.length === 0 ? (
-               <p className="text-sm text-clinical-400 font-medium text-center py-12">No hay documentos pdf registrados para esta paciente.</p>
-            ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {docs.map((doc) => (
-                     <div key={doc.id} className="p-6 rounded-[2rem] bg-clinical-50/50 border border-clinical-100 hover:bg-white hover:shadow-lg transition-all group flex flex-col justify-between h-48">
-                        <div className="flex items-start justify-between">
-                           <div className="h-12 w-12 rounded-2xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center group-hover:text-primary-600 transition-all shadow-sm">
-                              <FileText className="h-6 w-6" />
-                           </div>
-                           <div className="flex gap-2">
-                              <button 
-                                 onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
-                                 className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all shadow-sm"
-                              >
-                                 <Eye className="h-4 w-4" />
-                              </button>
-                              <button 
-                                 onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
-                                 className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all shadow-sm"
-                              >
-                                 <Download className="h-4 w-4" />
-                              </button>
-                           </div>
-                        </div>
-                        <div>
-                           <h4 className="text-sm font-black text-clinical-900 line-clamp-1 group-hover:text-primary-600 transition-colors">{doc.name}</h4>
-                           <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-1">Registrado el {new Date(doc.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                        </div>
-                     </div>
-                  ))}
-               </div>
-            )}
-         </div>
-
-         {selectedOrder && (
-            <ResultsManagerModal
-               isOpen={showResultsModal}
-               onClose={() => {
-                  setShowResultsModal(false)
-                  setTimeout(() => setSelectedOrder(null), 200)
-               }}
-               onUpdate={() => {
-                  orderService.getPatientOrders(patientId).then(setOrders)
-               }}
-               order={selectedOrder}
-            />
-         )}
-      </div>
-   )
-}
 
 function AlertasTab({ pregnancy, controles }: { pregnancy: any, controles: PrenatalControl[] }) {
    const egNum = parseFloat(calcularEGActual(pregnancy.fum)) || 0
@@ -1956,35 +1632,6 @@ function TimelineItem({ week, title, date, events, status }: any) {
    )
 }
 
-function ObstetricCalendar() {
-   const days = Array.from({ length: 31 })
-   return (
-      <div className="w-full max-w-[300px]">
-         <div className="grid grid-cols-7 gap-1 mb-4">
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => <div key={d} className="text-[9px] font-black text-clinical-300 text-center uppercase">{d}</div>)}
-         </div>
-         <div className="grid grid-cols-7 gap-1">
-            {days.map((_, i) => (
-               <div key={i} className={cn(
-                  "h-9 w-9 flex items-center justify-center rounded-xl text-[11px] font-black border transition-all cursor-pointer",
-                  i === 15 ? "bg-primary-600 text-white shadow-lg border-primary-500 scale-110" : "bg-white text-clinical-800 border-clinical-50 hover:border-primary-200"
-               )}>
-                  {i + 1}
-               </div>
-            ))}
-         </div>
-         <div className="mt-8 space-y-3">
-            <LegendItem color="bg-primary-500" label="Próximo Control" />
-            <LegendItem color="bg-emerald-500" label="Eco Realizada" />
-            <LegendItem color="bg-amber-500" label="Laboratorio" />
-         </div>
-      </div>
-   )
-}
-
-function LegendItem({ color, label }: any) {
-   return <div className="flex items-center gap-2"><div className={cn("h-2 w-2 rounded-full", color)} /><span className="text-[10px] font-black text-clinical-400 uppercase tracking-widest">{label}</span></div>
-}
 
 function ControlRecordRow({ date, eg, weight, tension, fcf, au }: any) {
    return (

@@ -7,6 +7,7 @@ import { ServicesConfigSection } from '@/features/site-config/ui/molecules/Servi
 import { BrandSectionEditor } from '@/features/site-config/ui/sections/BrandSectionEditor'
 import { ClinicalBillingSectionEditor } from '@/features/site-config/ui/sections/ClinicalBillingSectionEditor'
 import { ClinicalReportsSectionEditor } from '@/features/site-config/ui/sections/ClinicalReportsSectionEditor'
+import { ClinicalRecipesSectionEditor } from '@/features/site-config/ui/sections/ClinicalRecipesSectionEditor'
 import { CtaSectionEditor } from '@/features/site-config/ui/sections/CtaSectionEditor'
 import { HeroSectionEditor } from '@/features/site-config/ui/sections/HeroSectionEditor'
 import { Button } from '@/widgets/button'
@@ -30,7 +31,7 @@ export function SiteConfigForm({
   onClinicalChange,
   onSaveClinical,
 }: SiteConfigFormProps) {
-  if (isClinicalSection(section) && (clinicalLoading || !clinicalDraft)) {
+  if (isClinicalSection(section) && section !== 'clinical-recipes' && (clinicalLoading || !clinicalDraft)) {
     return (
       <p className="py-16 text-center text-sm font-medium text-clinical-400">
         Cargando configuración…
@@ -58,8 +59,13 @@ export function SiteConfigForm({
           onChange={onClinicalChange}
         />
       )}
+      {section === 'clinical-recipes' && (
+        <ClinicalRecipesSectionEditor
+          baseId={baseId}
+        />
+      )}
 
-      {isClinicalSection(section) && clinicalDraft ? (
+      {isClinicalSection(section) && section !== 'clinical-recipes' && clinicalDraft ? (
         <div className="flex justify-end pt-2">
           <Button
             type="button"

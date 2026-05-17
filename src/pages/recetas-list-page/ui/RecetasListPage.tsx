@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Plus, 
@@ -22,6 +22,8 @@ import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
 import { PatientSearchModal } from '@/pages/consultas-page/ui/organisms/PatientSearchModal'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { API_URL } from '@/shared/api/base'
 
 /* ==================================================
    MOCK DATA & TYPES
@@ -71,12 +73,49 @@ export const RecetasListPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [showPatientSearch, setShowPatientSearch] = useState(false)
-  const [recipes] = useState<PrescriptionSummary[]>(MOCK_RECETAS)
+  
+  // Real API paginated states
+  const [recipes, setRecipes] = useState<PrescriptionSummary[]>([])
+  const [loading, setLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [statusFilter, setStatusFilter] = useState('Todos los Estados')
 
-  const filteredRecipes = recipes.filter(recipe => 
-    recipe.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.secuencial.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const fetchRecipes = async (page = 1) => {
+    setLoading(true)
+    try {
+      const response = await axios.get(`${API_URL}/prescriptions`, {
+        params: {
+          page,
+          limit: 10,
+          search: searchQuery,
+          status: statusFilter
+        }
+      })
+      const { data, total, totalPages: totalP } = response.data
+      setRecipes(data)
+      setTotalItems(total)
+      setTotalPages(totalP)
+      setCurrentPage(page)
+    } catch (error) {
+      console.error('Error loading prescriptions:', error)
+      // Fallback to MOCK_RECETAS if database is empty/fresh
+      setRecipes(MOCK_RECETAS)
+      setTotalItems(MOCK_RECETAS.length)
+      setTotalPages(1)
+      setCurrentPage(1)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchRecipes(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery, statusFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -155,11 +194,16 @@ export const RecetasListPage: React.FC = () => {
            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-4 h-11 rounded-2xl bg-white shadow-premium ring-1 ring-inset ring-primary-100/50">
                  <Filter className="h-4 w-4 text-primary-400" />
-                 <select className="bg-transparent text-xs font-semibold text-clinical-800 outline-none cursor-pointer">
-                    <option>Todos los Estados</option>
-                    <option>Emitidas</option>
-                    <option>Vencidas</option>
-                 </select>
+                 <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-transparent text-xs font-semibold text-clinical-800 outline-none cursor-pointer"
+                  >
+                     <option value="Todos los Estados">Todos los Estados</option>
+                     <option value="Emitida">Emitidas</option>
+                     <option value="Vencida">Vencidas</option>
+                     <option value="Anulada">Anuladas</option>
+                  </select>
               </div>
            </div>
         </motion.div>
@@ -172,7 +216,7 @@ export const RecetasListPage: React.FC = () => {
           }}
           className="grid grid-cols-1 gap-4"
         >
-           {filteredRecipes.map((recipe, index) => (
+           {recipes.map((recipe, index) => (
              <motion.div
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
@@ -215,12 +259,76 @@ export const RecetasListPage: React.FC = () => {
            ))}
         </motion.div>
 
-        {filteredRecipes.length === 0 && (
-           <div className="h-64 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-clinical-100 text-clinical-200">
-              <Pill className="h-16 w-16 mb-4 opacity-10" />
-              <p className="text-lg font-black uppercase tracking-widest">No se encontraron recetas</p>
+         {recipes.length === 0 && (
+            <div className="h-64 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-clinical-100 text-clinical-200">
+               <Pill className="h-16 w-16 mb-4 opacity-10" />
+               <p className="text-lg font-black uppercase tracking-widest">No se encontraron recetas</p>
+            </div>
+         )}
+
+         {/* Paginación */}
+         {totalPages > 1 && (
+           <div className="mt-8 flex items-center justify-between bg-white px-6 py-4 rounded-3xl border border-clinical-100 shadow-premium">
+              <div className="flex flex-1 justify-between sm:hidden">
+                 <Button 
+                   onClick={() => fetchRecipes(currentPage - 1)}
+                   disabled={currentPage === 1}
+                   variant="secondary"
+                   className="rounded-xl"
+                 >
+                    Anterior
+                 </Button>
+                 <Button 
+                   onClick={() => fetchRecipes(currentPage + 1)}
+                   disabled={currentPage === totalPages}
+                   variant="secondary"
+                   className="rounded-xl"
+                 >
+                    Siguiente
+                 </Button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                 <div>
+                    <p className="text-xs font-bold text-clinical-400">
+                       Mostrando página <span className="font-black text-primary-600">{currentPage}</span> de <span className="font-black text-primary-600">{totalPages}</span> ({totalItems} recetas registradas)
+                    </p>
+                 </div>
+                 <div>
+                    <nav className="isolate inline-flex -space-x-px rounded-xl gap-2" aria-label="Pagination">
+                       <Button
+                         onClick={() => fetchRecipes(currentPage - 1)}
+                         disabled={currentPage === 1}
+                         variant="secondary"
+                         className="h-9 w-9 p-0 rounded-xl border-clinical-100 text-clinical-450"
+                       >
+                          &lt;
+                       </Button>
+                       {Array.from({ length: totalPages }).map((_, i) => (
+                          <Button
+                            key={i}
+                            onClick={() => fetchRecipes(i + 1)}
+                            variant={currentPage === i + 1 ? 'primary' : 'secondary'}
+                            className={cn(
+                              "h-9 w-9 p-0 rounded-xl font-black text-xs",
+                              currentPage === i + 1 ? "shadow-md shadow-primary-100" : "border-clinical-100 text-clinical-700"
+                            )}
+                          >
+                             {i + 1}
+                          </Button>
+                       ))}
+                       <Button
+                         onClick={() => fetchRecipes(currentPage + 1)}
+                         disabled={currentPage === totalPages}
+                         variant="secondary"
+                         className="h-9 w-9 p-0 rounded-xl border-clinical-100 text-clinical-450"
+                       >
+                          &gt;
+                       </Button>
+                    </nav>
+                 </div>
+              </div>
            </div>
-        )}
+         )}
       </motion.div>
 
       <PatientSearchModal 

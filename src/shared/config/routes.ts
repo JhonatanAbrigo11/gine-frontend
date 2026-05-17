@@ -16,6 +16,8 @@ export const ROUTES = {
   ecografias: '/ecografias',
   reportes: '/reportes',
   configuracion: '/configuracion',
+  configuracionRecetas: '/configuracion/recetas',
+  configuracionMedicamentos: '/configuracion/medicamentos',
   confirmacion: '/confirmacion-cita/:id',
 } as const
 

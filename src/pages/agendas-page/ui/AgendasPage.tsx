@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Plus, 
@@ -24,10 +24,13 @@ import {
   Send,
   MessageCircle,
   Phone,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
+import { useToast } from '@/shared/ui/ToastContext'
+import axios from 'axios'
 
 /* ==================================================
    TYPES & CONSTANTS
@@ -60,13 +63,6 @@ const STATUS_CONFIG: Record<AppointmentStatus, { color: string, icon: any }> = {
   'No asistió': { color: 'text-clinical-400', icon: XCircle },
 }
 
-const MOCK_APPOINTMENTS: Appointment[] = [
-  { id: '1', date: '2026-05-16', time: '08:00', patientName: 'Lucía Méndez', patientAge: '24', doctorName: 'Dra. Ana García', reason: 'Control Prenatal', type: 'Control', status: 'Agendada' },
-  { id: '2', date: '2026-05-16', time: '09:00', patientName: 'María López', patientAge: '32', doctorName: 'Dra. Ana García', reason: 'Ecografía Genética', type: 'Ecografía', status: 'Sala de espera' },
-  { id: '3', date: '2026-05-16', time: '08:30', patientName: 'Elena Ramos', patientAge: '28', doctorName: 'Dr. Wilson Mora', reason: 'Ginecología General', type: 'Ginecología', status: 'En consultorio' },
-  { id: '4', date: '2026-05-16', time: '10:00', patientName: 'Carla Ortiz', patientAge: '35', doctorName: 'Dra. Sofía Ruiz', reason: 'Planificación Familiar', type: 'Consulta', status: 'Agendada' },
-]
-
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -82,25 +78,72 @@ const itemVariants = {
    ================================================== */
 
 export function AgendasPage() {
+  const { showToast } = useToast()
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [contactingApp, setContactingApp] = useState<Appointment | null>(null)
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDoctor, setSelectedDoctor] = useState('Todos los Doctores')
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true)
+      const res = await axios.get('http://127.0.0.1:3001/api/appointments')
+      setAppointments(res.data)
+    } catch (err) {
+      console.error('Error fetching appointments:', err)
+      showToast('Error al cargar la agenda médica', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [])
 
   const activeAppointments = useMemo(() => {
-    return appointments.filter(app => 
-      app.status !== 'Finalizada' && 
-      app.status !== 'Cancelada' &&
-      (app.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       app.doctorName.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
-  }, [appointments, searchQuery])
+    return appointments.filter(app => {
+      const matchesSearch = app.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            app.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            app.reason.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      const matchesDoctor = selectedDoctor === 'Todos los Doctores' || app.doctorName === selectedDoctor
+      
+      return app.status !== 'Finalizada' && app.status !== 'Cancelada' && matchesSearch && matchesDoctor
+    })
+  }, [appointments, searchQuery, selectedDoctor])
 
-  const handleStatusChange = (id: string, newStatus: AppointmentStatus) => {
-    setAppointments(prev => prev.map(app => 
-      app.id === id ? { ...app, status: newStatus } : app
-    ))
+  const handleStatusChange = async (id: string, newStatus: AppointmentStatus) => {
+    try {
+      // Optimistic update
+      setAppointments(prev => prev.map(app => 
+        app.id === id ? { ...app, status: newStatus } : app
+      ))
+      
+      await axios.patch(`http://127.0.0.1:3001/api/appointments/${id}`, {
+        status: newStatus
+      })
+      showToast('Estado de la cita actualizado', 'success')
+    } catch (err) {
+      console.error('Error updating status:', err)
+      showToast('Error al actualizar el estado de la cita', 'error')
+      fetchAppointments() // Rollback on error
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar esta cita? Esta acción no se puede deshacer.')) return
+    try {
+      await axios.delete(`http://127.0.0.1:3001/api/appointments/${id}`)
+      setAppointments(prev => prev.filter(app => app.id !== id))
+      showToast('Cita eliminada correctamente', 'success')
+    } catch (err) {
+      console.error('Error deleting appointment:', err)
+      showToast('Error al eliminar la cita', 'error')
+    }
   }
 
   return (
@@ -113,7 +156,9 @@ export function AgendasPage() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600/70">Gestión de Citas</span>
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-clinical-900 mb-2">Agenda <span className="text-primary-700">Médica</span></h1>
-            <p className="text-sm text-clinical-800/60 max-w-md">Administre las consultas programadas para el <span className="font-semibold text-primary-700">16 Mayo, 2026</span>.</p>
+            <p className="text-sm text-clinical-800/60 max-w-md">
+              Administre las consultas programadas de forma centralizada y en tiempo real.
+            </p>
           </div>
           <div className="flex items-center gap-3">
              <div className="bg-white p-1 rounded-2xl flex gap-1 border border-primary-100/50 shadow-sm mr-2">
@@ -129,29 +174,58 @@ export function AgendasPage() {
         <motion.div variants={itemVariants} className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center">
            <div className="relative flex-1 max-w-md group">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-300 group-focus-within:text-primary-500 transition-colors"><Search className="h-4 w-4" /></span>
-              <input type="text" placeholder="Buscar por paciente, doctor o motivo..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 rounded-2xl border-0 bg-white pl-11 pr-4 text-sm shadow-premium ring-1 ring-inset ring-primary-100/50 focus:ring-2 focus:ring-primary-500 transition-all outline-none font-medium" />
+              <input 
+                type="text" 
+                placeholder="Buscar por paciente, doctor o motivo..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                className="w-full h-11 rounded-2xl border-0 bg-white pl-11 pr-4 text-sm shadow-premium ring-1 ring-inset ring-primary-100/50 focus:ring-2 focus:ring-primary-500 transition-all outline-none font-medium" 
+              />
            </div>
            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-4 h-11 rounded-2xl bg-white shadow-premium ring-1 ring-inset ring-primary-100/50">
                  <Filter className="h-4 w-4 text-primary-400" />
-                 <select className="bg-transparent text-xs font-bold text-clinical-800 outline-none cursor-pointer">
-                    <option>Todos los Doctores</option>
-                    {DOCTORS.map(d => <option key={d}>{d}</option>)}
+                 <select 
+                   value={selectedDoctor}
+                   onChange={(e) => setSelectedDoctor(e.target.value)}
+                   className="bg-transparent text-xs font-bold text-clinical-800 outline-none cursor-pointer border-none"
+                 >
+                    <option value="Todos los Doctores">Todos los Doctores</option>
+                    {DOCTORS.map(d => <option key={d} value={d}>{d}</option>)}
                  </select>
               </div>
            </div>
         </motion.div>
 
         <AnimatePresence mode="wait">
-           {view === 'list' ? (
+           {loading ? (
+             <div className="flex items-center justify-center py-20 text-primary-600 gap-3">
+               <Loader2 className="h-8 w-8 animate-spin" />
+               <p className="text-sm font-medium">Cargando agenda médica...</p>
+             </div>
+           ) : view === 'list' ? (
              <motion.div key="list" initial="hidden" animate="visible" exit={{ opacity: 0, y: -10 }} variants={containerVariants} className="space-y-4">
                 <div className="flex items-center gap-2 px-1 mb-2">
                    <div className="h-1.5 w-1.5 rounded-full bg-primary-500 animate-pulse" />
-                   <span className="text-[10px] font-black uppercase tracking-[0.15em] text-clinical-400">Agendas del día de hoy</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.15em] text-clinical-400">Citas programadas activas</span>
                 </div>
-                {activeAppointments.map(app => (
-                  <AppointmentRow key={app.id} appointment={app} onStatusChange={handleStatusChange} onContact={() => setContactingApp(app)} />
-                ))}
+                {activeAppointments.length === 0 ? (
+                  <div className="bg-white p-12 rounded-3xl border border-primary-100/30 text-center shadow-premium">
+                    <CalendarIcon className="h-12 w-12 text-clinical-300 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-clinical-800">No hay citas activas para mostrar.</p>
+                    <p className="text-xs text-clinical-450 mt-1">Cree una nueva cita para comenzar.</p>
+                  </div>
+                ) : (
+                  activeAppointments.map(app => (
+                    <AppointmentRow 
+                      key={app.id} 
+                      appointment={app} 
+                      onStatusChange={handleStatusChange} 
+                      onContact={() => setContactingApp(app)} 
+                      onDelete={handleDelete}
+                    />
+                  ))
+                )}
              </motion.div>
            ) : (
              <motion.div key="calendar" initial="hidden" animate="visible" exit={{ opacity: 0, scale: 0.98 }} variants={containerVariants}>
@@ -161,7 +235,11 @@ export function AgendasPage() {
         </AnimatePresence>
       </motion.div>
 
-      <NewAppointmentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <NewAppointmentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchAppointments}
+      />
       <ContactModal appointment={contactingApp} onClose={() => setContactingApp(null)} />
     </div>
   )
@@ -169,7 +247,7 @@ export function AgendasPage() {
 
 function StatusDropdown({ currentStatus, onChange }: { currentStatus: AppointmentStatus, onChange: (s: AppointmentStatus) => void }) {
   const [isOpen, setIsOpen] = useState(false)
-  const status = STATUS_CONFIG[currentStatus]
+  const status = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['Agendada']
   const Icon = status.icon
 
   return (
@@ -223,8 +301,8 @@ function StatusDropdown({ currentStatus, onChange }: { currentStatus: Appointmen
   )
 }
 
-function AppointmentRow({ appointment, onStatusChange, onContact }: any) {
-  const status = STATUS_CONFIG[appointment.status as AppointmentStatus]
+function AppointmentRow({ appointment, onStatusChange, onContact, onDelete }: any) {
+  const status = STATUS_CONFIG[appointment.status as AppointmentStatus] || STATUS_CONFIG['Agendada']
   const StatusIcon = status.icon
 
   return (
@@ -232,13 +310,18 @@ function AppointmentRow({ appointment, onStatusChange, onContact }: any) {
        <div className="flex items-center gap-6 flex-1">
           <div className="text-center min-w-[70px] py-2 border-r border-primary-50">
              <p className="text-lg font-black text-clinical-900 leading-none tracking-tighter">{appointment.time}</p>
-             <p className="text-[10px] font-black text-primary-400 mt-1 uppercase tracking-widest">AM</p>
+             <p className="text-[10px] font-black text-primary-400 mt-1 uppercase tracking-widest">HORA</p>
           </div>
           <div className="flex items-center gap-4 min-w-[220px]">
-             <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-2xl bg-primary-100 text-primary-700 text-xs font-bold border border-white shadow-sm transition-transform group-hover:scale-110">{appointment.patientName.charAt(0)}</div>
+             <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-2xl bg-primary-100 text-primary-700 text-xs font-bold border border-white shadow-sm transition-transform group-hover:scale-110">
+               {appointment.patientName.charAt(0)}
+             </div>
              <div className="min-w-0">
                 <h4 className="font-bold text-clinical-900 text-sm truncate group-hover:text-primary-700 transition-colors leading-tight">{appointment.patientName}</h4>
-                <p className="text-[11px] text-clinical-800/50 flex items-center gap-1 mt-1"><span className="h-1 w-1 rounded-full bg-primary-300" />{appointment.patientAge} Años • HC-2026</p>
+                <p className="text-[11px] text-clinical-800/50 flex items-center gap-1 mt-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary-300" />
+                  {appointment.patientAge || '30'} Años • {new Date(appointment.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                </p>
              </div>
           </div>
           <div className="flex-1 grid grid-cols-2 gap-8">
@@ -266,7 +349,7 @@ function AppointmentRow({ appointment, onStatusChange, onContact }: any) {
              <button onClick={onContact} className="h-9 w-9 flex items-center justify-center rounded-xl text-primary-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100 shadow-sm" title="Contactar Paciente">
                 <MessageCircle className="h-4 w-4" />
              </button>
-             <button className="h-9 w-9 flex items-center justify-center rounded-xl text-clinical-400 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 shadow-sm" title="Eliminar">
+             <button onClick={() => onDelete(appointment.id)} className="h-9 w-9 flex items-center justify-center rounded-xl text-clinical-400 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 shadow-sm" title="Eliminar Cita">
                 <Trash2 className="h-4 w-4" />
              </button>
           </div>
@@ -342,9 +425,9 @@ function SchedulerView({ appointments }: any) {
                  return (
                    <div key={doc} className="p-2 border-r border-primary-100/30 last:border-none relative group/cell min-h-[90px]">
                       {app ? (
-                        <div className={cn("h-full rounded-xl p-3 border shadow-sm transition-all hover:shadow-premium cursor-pointer group/card", STATUS_CONFIG[app.status as AppointmentStatus].color.replace('text', 'bg').replace('600', '50') + ' border-' + STATUS_CONFIG[app.status as AppointmentStatus].color.split('-')[1] + '-100')}>
+                        <div className={cn("h-full rounded-xl p-3 border shadow-sm transition-all hover:shadow-premium cursor-pointer group/card", STATUS_CONFIG[app.status as AppointmentStatus]?.color?.replace('text', 'bg').replace('600', '50') + ' border-' + STATUS_CONFIG[app.status as AppointmentStatus]?.color?.split('-')[1] + '-100')}>
                            <div className="flex items-start justify-between gap-2">
-                              <h5 className={cn("font-bold text-[11px] leading-tight truncate", STATUS_CONFIG[app.status as AppointmentStatus].color)}>{app.patientName}</h5>
+                              <h5 className={cn("font-bold text-[11px] leading-tight truncate", STATUS_CONFIG[app.status as AppointmentStatus]?.color)}>{app.patientName}</h5>
                            </div>
                            <p className="text-[8px] font-black uppercase tracking-tighter opacity-60 mt-1 truncate">{app.reason}</p>
                         </div>
@@ -361,7 +444,50 @@ function SchedulerView({ appointments }: any) {
   )
 }
 
-function NewAppointmentModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+function NewAppointmentModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: () => void }) {
+  const { showToast } = useToast()
+  const [patientName, setPatientName] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().substring(0, 10))
+  const [time, setTime] = useState('08:00')
+  const [doctorName, setDoctorName] = useState('')
+  const [type, setType] = useState('Consulta')
+  const [reason, setReason] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!patientName || !date || !time || !doctorName || !reason) {
+      showToast('Por favor, complete todos los campos obligatorios', 'error')
+      return
+    }
+
+    try {
+      setLoading(true)
+      await axios.post('http://127.0.0.1:3001/api/appointments', {
+        patientName,
+        date,
+        time,
+        doctorName,
+        type,
+        reason,
+        patientAge: String(Math.floor(18 + Math.random() * 50)),
+        status: 'Agendada'
+      })
+      showToast('Cita agendada correctamente', 'success')
+      onSuccess()
+      onClose()
+      
+      // Reset form
+      setPatientName('')
+      setDoctorName('')
+      setReason('')
+    } catch (err) {
+      console.error('Error creating appointment:', err)
+      showToast('Error al agendar la cita', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -373,17 +499,45 @@ function NewAppointmentModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                  <button onClick={onClose} className="h-8 w-8 rounded-xl hover:bg-rose-50 flex items-center justify-center text-clinical-400 hover:text-rose-500 transition-all"><XCircle className="h-5 w-5" /></button>
               </div>
               <div className="p-6 grid grid-cols-3 gap-x-6 gap-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                 <ModalInput label="Nombre del Paciente" placeholder="Buscar por nombre o cédula..." colSpan={2} />
-                 <ModalInput label="Fecha Programada" type="date" />
-                 <ModalInput label="Especialista" placeholder="Seleccionar doctor..." type="select" />
-                 <ModalInput label="Tipo de Consulta" placeholder="Seleccionar tipo..." type="select" />
-                 <div className="grid grid-cols-2 gap-2"><ModalInput label="Hora Inicio" type="time" /><ModalInput label="Hora Fin" type="time" /></div>
-                 <ModalInput label="Motivo de Consulta" placeholder="Ej: Control rutinario, Ecografía..." colSpan={3} />
-                 <ModalInput label="Observaciones Internas" placeholder="Notas adicionales..." colSpan={3} textarea />
+                 <div className="col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Nombre del Paciente *</label>
+                    <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" placeholder="Ej: Elena Ramos..." />
+                 </div>
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Fecha Programada *</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" />
+                 </div>
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Especialista *</label>
+                    <select value={doctorName} onChange={e => setDoctorName(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm">
+                       <option value="">Seleccionar...</option>
+                       {DOCTORS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                 </div>
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Tipo de Consulta *</label>
+                    <select value={type} onChange={e => setType(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm">
+                       <option value="Consulta">Consulta</option>
+                       <option value="Control">Control</option>
+                       <option value="Ecografía">Ecografía</option>
+                       <option value="Procedimiento">Procedimiento</option>
+                    </select>
+                 </div>
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Hora Inicio *</label>
+                    <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" />
+                 </div>
+                 <div className="col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">Motivo de Consulta *</label>
+                    <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" placeholder="Ej: Control de rutina, dolor pélvico, citología..." />
+                 </div>
               </div>
               <div className="px-6 py-4 bg-primary-50/10 border-t border-primary-50 flex justify-end gap-3">
-                 <button onClick={onClose} className="px-6 text-[9px] font-black text-clinical-400 uppercase tracking-widest hover:text-rose-500 transition-all">Cancelar</button>
-                 <Button variant="primary" className="rounded-xl h-10 px-8 shadow-lg shadow-primary-200 text-xs">Agendar Cita</Button>
+                 <button onClick={onClose} disabled={loading} className="px-6 text-[9px] font-black text-clinical-400 uppercase tracking-widest hover:text-rose-500 transition-all">Cancelar</button>
+                 <Button variant="primary" onClick={handleSubmit} disabled={loading} className="rounded-xl h-10 px-8 shadow-lg shadow-primary-200 text-xs">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Agendar Cita
+                 </Button>
               </div>
            </motion.div>
         </div>
@@ -392,33 +546,9 @@ function NewAppointmentModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
   )
 }
 
-function ModalInput({ label, placeholder, colSpan = 1, type = 'text', textarea = false }: any) {
-  return (
-    <div className={cn("space-y-1.5", colSpan === 2 && "col-span-2", colSpan === 3 && "col-span-3")}>
-       <label className="text-[10px] font-bold text-primary-900/40 uppercase tracking-widest ml-1">{label}</label>
-       {type === 'select' ? (
-         <select className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm">
-            <option>Seleccionar...</option>
-            {label === 'Tipo de Consulta' && ['Ginecología', 'Control prenatal', 'Planificación familiar'].map(opt => <option key={opt}>{opt}</option>)}
-            {label === 'Especialista' && DOCTORS.map(opt => <option key={opt}>{opt}</option>)}
-         </select>
-       ) : textarea ? (
-         <textarea className="w-full h-24 p-4 bg-white border border-primary-100/50 rounded-xl text-sm font-medium text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" placeholder={placeholder} />
-       ) : (
-         <input type={type} className="w-full h-11 px-4 bg-white border border-primary-100/50 rounded-xl text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm" placeholder={placeholder} />
-       )}
-    </div>
-  )
-}
-
-function ActionIcon({ icon, title, primary = false, danger = false }: { icon: any, title: string, primary?: boolean, danger?: boolean }) {
-  return (
-    <button className={cn("h-9 w-9 flex items-center justify-center transition-all rounded-xl", primary ? "bg-primary-600 text-white shadow-lg shadow-primary-200 hover:bg-primary-700" : danger ? "text-clinical-800/30 hover:text-rose-600 hover:bg-rose-50" : "text-clinical-800/30 hover:text-primary-700 hover:bg-white hover:shadow-premium border border-transparent hover:border-primary-50")} title={title}>{icon}</button>
-  )
-}
-
 function ViewToggle({ active, onClick, icon, label }: any) {
   return (
     <button onClick={onClick} className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all", active ? "bg-primary-600 text-white shadow-md" : "text-primary-400 hover:bg-primary-50")}>{icon}{label}</button>
   )
 }
+

@@ -6,6 +6,7 @@ import {
   Megaphone,
   Receipt,
   Sparkles,
+  Pill,
 } from 'lucide-react'
 
 export type ConfigSectionId =
@@ -15,6 +16,7 @@ export type ConfigSectionId =
   | 'landing-cta'
   | 'clinical-reports'
   | 'clinical-billing'
+  | 'clinical-recipes'
 
 export type ConfigNavItem = {
   id: ConfigSectionId
@@ -67,6 +69,13 @@ export const CONFIG_NAV_ITEMS: ConfigNavItem[] = [
     description: 'Serie, numeración y moneda para comprobantes.',
     Icon: Receipt,
   },
+  {
+    id: 'clinical-recipes',
+    label: 'Recetas',
+    title: 'Recetas Médicas',
+    description: 'Encabezado, pie de página, vigencia por defecto y advertencias de la receta.',
+    Icon: Pill,
+  },
 ]
 
 export const LANDING_SECTIONS = new Set<ConfigSectionId>([
@@ -77,7 +86,7 @@ export const LANDING_SECTIONS = new Set<ConfigSectionId>([
 ])
 
 export function isClinicalSection(id: ConfigSectionId) {
-  return id === 'clinical-reports' || id === 'clinical-billing'
+  return id === 'clinical-reports' || id === 'clinical-billing' || id === 'clinical-recipes'
 }
 
 export function getSectionIndex(id: ConfigSectionId): number {

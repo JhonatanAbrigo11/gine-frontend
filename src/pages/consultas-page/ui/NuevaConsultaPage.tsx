@@ -180,6 +180,14 @@ export function NuevaConsultaPage() {
     if (!consultation) return
     try {
       setLocalLoading(true)
+
+      // Guardar antecedentes del paciente si fueron modificados
+      if (patient && patient.id) {
+        await axios.patch(`http://127.0.0.1:3001/api/patients/${patient.id}`, {
+          antecedentes: patient.antecedentes
+        })
+      }
+
       if (isEditMode && consultationId) {
         await consultationService.update(consultationId, consultation)
         showToast('Consulta clínica actualizada con éxito', 'success')
@@ -455,10 +463,16 @@ function EvolucionTab() {
 
        <FormSection title="Antecedentes Relevantes (Referencia)" icon={<ClipboardList className="h-4 w-4" />}>
           <textarea 
-            defaultValue={patient?.antecedentes || ''}
-            className="w-full h-48 rounded-[2rem] bg-clinical-50/10 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none opacity-80" 
-            placeholder="Datos de la ficha de la paciente..." 
-            readOnly
+            value={patient?.antecedentes || ''}
+            onChange={(e) => {
+              if (patient) {
+                useConsultationStore.setState({
+                  patient: { ...patient, antecedentes: e.target.value }
+                })
+              }
+            }}
+            className="w-full h-48 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+            placeholder="Escriba los antecedentes médicos de la paciente aquí..." 
           />
        </FormSection>
     </div>

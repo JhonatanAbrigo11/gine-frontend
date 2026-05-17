@@ -138,6 +138,18 @@ export function AppSidebar({
       to: ROUTES.configuracion,
       icon: <Settings className="h-5 w-5" />,
     },
+    {
+      label: 'Recetas',
+      to: ROUTES.configuracionRecetas,
+      icon: <Pill className="h-4 w-4" />,
+      isSubItem: true,
+    },
+    {
+      label: 'Medicamentos',
+      to: ROUTES.configuracionMedicamentos,
+      icon: <Pill className="h-4 w-4" />,
+      isSubItem: true,
+    },
   ]
 
   return (
@@ -198,44 +210,59 @@ export function AppSidebar({
           <div className={cn("px-4 mb-2 transition-opacity duration-200", (expanded || mobileOpen) ? "opacity-100" : "opacity-0 h-0 overflow-hidden")}>
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-clinical-800/30">Menú de Gestión</span>
           </div>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={(e) => {
-                onMobileClose?.()
-                if (isDirty) {
-                  e.preventDefault()
-                  setPendingPath(item.to)
-                  setShowSidebarExitModal(true)
-                }
-              }}
-              className={({ isActive }) => {
-                const isItemActive = isActive || (item.to === '/control-obstetrico' && location.pathname.startsWith('/control-obstetrico'))
-                return cn(
-                  'group flex items-center gap-4 rounded-2xl p-3.5 text-sm font-bold transition-all duration-200',
-                  isItemActive
-                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
-                    : 'text-clinical-800/60 hover:bg-white hover:text-primary-700 hover:shadow-sm',
-                )
-              }}
-            >
-              <span className="shrink-0">{item.icon}</span>
-              <div className="flex flex-1 items-center justify-between overflow-hidden">
-                <span
-                  className={cn(
-                    'whitespace-nowrap transition-all duration-300',
-                    (expanded || mobileOpen) ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0',
+          {navItems.map((item) => {
+            // Hide sub-items if collapsed
+            if (item.isSubItem && !expanded && !mobileOpen) return null
+
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={(e) => {
+                  onMobileClose?.()
+                  if (isDirty) {
+                    e.preventDefault()
+                    setPendingPath(item.to)
+                    setShowSidebarExitModal(true)
+                  }
+                }}
+                className={({ isActive }) => {
+                  const isItemActive = isActive || (item.to === '/control-obstetrico' && location.pathname.startsWith('/control-obstetrico'))
+                  return cn(
+                    'group flex items-center gap-4 transition-all duration-200',
+                    item.isSubItem
+                      ? cn(
+                          'ml-8 p-2 rounded-xl text-xs font-bold',
+                          isItemActive
+                            ? 'bg-primary-50 text-primary-700 border border-primary-100/50 shadow-sm'
+                            : 'text-clinical-800/50 hover:bg-white hover:text-primary-600 hover:shadow-xs'
+                        )
+                      : cn(
+                          'rounded-2xl p-3.5 text-sm font-bold',
+                          isItemActive
+                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
+                            : 'text-clinical-800/60 hover:bg-white hover:text-primary-700 hover:shadow-sm'
+                        )
+                  )
+                }}
+              >
+                <span className="shrink-0">{item.icon}</span>
+                <div className="flex flex-1 items-center justify-between overflow-hidden">
+                  <span
+                    className={cn(
+                      'whitespace-nowrap transition-all duration-300',
+                      (expanded || mobileOpen) ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0',
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  {(expanded || mobileOpen) && !item.isSubItem && (
+                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
                   )}
-                >
-                  {item.label}
-                </span>
-                {(expanded || mobileOpen) && (
-                  <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
-                )}
-              </div>
-            </NavLink>
-          ))}
+                </div>
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* Footer / User */}

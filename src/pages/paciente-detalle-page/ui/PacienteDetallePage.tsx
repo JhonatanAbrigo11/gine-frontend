@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   ChevronLeft, 
@@ -28,6 +28,10 @@ import {
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
 import { API_URL } from '@/shared/api/base'
+import axios from 'axios'
+import { jsPDF } from 'jspdf'
+import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
+import { pregnancyService } from '@/entities/pregnancy/api/pregnancy.service'
 
 /* ==================================================
    MOCK DATA
@@ -76,9 +80,10 @@ import { Loader2 } from 'lucide-react'
 export const PacienteDetallePage: React.FC = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { showToast } = useToast()
   
-  const [activeTab, setActiveTab] = useState('historial')
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'historial')
   const [patient, setPatient] = useState<Patient | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -96,9 +101,15 @@ export const PacienteDetallePage: React.FC = () => {
     }
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchPatient()
   }, [id])
+
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab)
+    }
+  }, [location.state])
 
   const tabs = [
     { id: 'datos', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
@@ -127,7 +138,6 @@ export const PacienteDetallePage: React.FC = () => {
     )
   }
 
-  const patientRisk = 'Bajo' // Placeholder for logic
   const patientInitials = `${patient.nombres.charAt(0)}${patient.apellidos.charAt(0)}`
 
   return (
@@ -152,12 +162,6 @@ export const PacienteDetallePage: React.FC = () => {
                  <div>
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                        <h1 className="text-2xl sm:text-3xl font-black text-clinical-900 tracking-tight">{patient.nombres} {patient.apellidos}</h1>
-                       <span className={cn(
-                         "px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border",
-                         patientRisk === 'Bajo' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"
-                       )}>
-                          Riesgo {patientRisk}
-                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] sm:text-[11px] font-bold text-clinical-500 uppercase tracking-widest">
                        <span className="flex items-center gap-1.5"><Hash className="h-3.5 w-3.5" /> ID: {patient.numeroDocumento}</span>
@@ -224,34 +228,36 @@ export const PacienteDetallePage: React.FC = () => {
 
 function DatosPersonalesTab({ patient }: { patient: Patient }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-       <div className="md:col-span-2 space-y-8">
-          <div className="glass-card rounded-[2.5rem] p-8 border-white">
-             <h3 className="text-sm font-bold text-clinical-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+       {/* Columna Izquierda: Información de Perfil */}
+       <div className="glass-card rounded-[2.5rem] p-8 border-white flex flex-col justify-between">
+          <div>
+             <h3 className="text-sm font-bold text-clinical-900 uppercase tracking-widest mb-8 flex items-center gap-2">
                 <User className="h-4 w-4 text-primary-600" /> Información de Perfil
              </h3>
-             <div className="grid grid-cols-2 gap-y-8 gap-x-12">
+             <div className="space-y-6">
                 <DataField label="Nombre Completo" value={`${patient.nombres} ${patient.apellidos}`} />
                 <DataField label="Fecha de Nacimiento" value={patient.fechaNacimiento ? new Date(patient.fechaNacimiento).toLocaleDateString() : '—'} />
                 <DataField label="Correo Electrónico" value={patient.email || '—'} icon={<Mail className="h-3.5 w-3.5" />} />
                 <DataField label="Teléfono / WhatsApp" value={patient.telefono || '—'} icon={<Phone className="h-3.5 w-3.5" />} />
-                <DataField label="Dirección Residencial" value={patient.direccion || '—'} icon={<MapPin className="h-3.5 w-3.5" />} className="col-span-2" />
+                <DataField label="Dirección Residencial" value={patient.direccion || '—'} icon={<MapPin className="h-3.5 w-3.5" />} />
              </div>
           </div>
+       </div>
 
-          <div className="glass-card rounded-[2.5rem] p-8 border-white">
+       {/* Columna Derecha: Información Clínica Base + Estado Obstétrico */}
+       <div className="space-y-8 flex flex-col justify-between">
+          <div className="glass-card rounded-[2.5rem] p-8 border-white flex-1">
              <h3 className="text-sm font-bold text-clinical-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Activity className="h-4 w-4 text-emerald-600" /> Información Clínica Base
              </h3>
-             <div className="grid grid-cols-2 gap-y-8 gap-x-12">
+             <div className="space-y-6">
                 <DataField label="Tipo de Sangre" value={patient.tipoSanguineo || '—'} />
                 <DataField label="Antecedentes Médicos" value={patient.antecedentes || '—'} />
                 <DataField label="Alergias Conocidas" value={patient.alergias || '—'} danger />
              </div>
           </div>
-       </div>
 
-       <div className="space-y-8">
           <div className="glass-card rounded-[2.5rem] p-8 border-white shadow-premium">
              <h3 className="text-sm font-bold text-clinical-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Baby className="h-4 w-4 text-primary-600" /> Estado Obstétrico
@@ -390,47 +396,384 @@ function HistorialClinicoTab({ patient }: { patient: Patient }) {
   )
 }
 
+const generateDefaultLogoBase64 = (color: string = '#026fc7'): string => {
+  if (typeof document === 'undefined') return ''
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.strokeStyle = color
+    ctx.lineWidth = 6
+    ctx.beginPath()
+    ctx.arc(64, 64, 58, 0, 2 * Math.PI)
+    ctx.stroke()
+    ctx.fillStyle = color
+    ctx.fillRect(54, 28, 20, 72)
+    ctx.fillRect(28, 54, 72, 20)
+    return canvas.toDataURL('image/png')
+  }
+  return ''
+}
+
+const generateDefaultWatermarkBase64 = (color: string = '#026fc7', opacity: number = 0.05): string => {
+  if (typeof document === 'undefined') return ''
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.globalAlpha = opacity
+    ctx.strokeStyle = color
+    ctx.lineWidth = 10
+    ctx.beginPath()
+    ctx.arc(128, 128, 110, 0, 2 * Math.PI)
+    ctx.stroke()
+    ctx.fillStyle = color
+    ctx.fillRect(108, 48, 40, 160)
+    ctx.fillRect(48, 108, 160, 40)
+    return canvas.toDataURL('image/png')
+  }
+  return ''
+}
+
 function RecetasTab({ patient }: { patient: Patient }) {
-  // Aquí luego cargaremos las recetas reales relacionadas al paciente
+  const { settings } = useBusinessSettings()
+  const [localPrescriptions, setLocalPrescriptions] = useState<any[]>([])
+  const [dbPrescriptions, setDbPrescriptions] = useState<any[]>([])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`prescriptions_${patient.numeroDocumento || patient.id}`)
+      if (stored) {
+        setLocalPrescriptions(JSON.parse(stored))
+      } else {
+        setLocalPrescriptions([])
+      }
+    } catch (e) {
+      console.error('Error reading prescriptions from localStorage:', e)
+    }
+  }, [patient])
+
+  useEffect(() => {
+    if (!patient?.id) return
+    axios.get(`${API_URL}/prescriptions`, {
+      params: {
+        patientId: patient.id,
+        limit: 100
+      }
+    })
+    .then(res => {
+      const list = res.data?.data || []
+      setDbPrescriptions(list)
+    })
+    .catch(err => {
+      console.error('Error fetching patient prescriptions from API:', err)
+    })
+  }, [patient])
+
+  const generatePDFForPrescription = (receta: any, shouldDownload: boolean = true) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      })
+      
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const colWidth = (pageWidth - 60) / 2
+      const midPoint = pageWidth / 2
+
+      const defaultLogoPng = generateDefaultLogoBase64('#026fc7')
+      const defaultWatermarkPng = generateDefaultWatermarkBase64('#026fc7', 0.04)
+
+      const drawColumnContent = (x: number, type: 'rp' | 'indications') => {
+        const rawLogo = settings?.recipeLogoUrl
+        const hasCustomLogo = rawLogo && rawLogo !== 'null' && rawLogo !== ''
+        
+        const logoToUse = hasCustomLogo ? rawLogo : defaultLogoPng
+        const watermarkToUse = defaultWatermarkPng // Fallback watermark
+
+        // Subtle Logo Watermark
+        try {
+          doc.addImage(watermarkToUse, 'PNG', x + colWidth/2 - 25, 75, 50, 50)
+        } catch (e) {
+          console.error("Watermark failed to draw:", e)
+        }
+
+        // Header with Logo
+        try {
+          doc.addImage(logoToUse, 'PNG', x, 14, 13, 13)
+        } catch (e) { 
+          console.error("Header logo failed to draw:", e)
+        }
+        
+        doc.setFontSize(16)
+        doc.setTextColor(2, 111, 199)
+        doc.setFont('helvetica', 'bold')
+        doc.text(settings?.clinicName || receta.doctor?.clinic || 'GineCentro Premium', x + 16, 21)
+        
+        doc.setFontSize(7)
+        doc.setTextColor(140)
+        doc.setFont('helvetica', 'normal')
+        doc.text(settings?.reportHeader || 'Ginecología y Obstetricia de Alta Especialidad', x + 16, 25)
+        doc.text(settings?.address || 'Quito, Ecuador • Av. Amazonas N34-45 • Tel: (02) 2555-000', x, 34)
+
+        // Accent Line
+        doc.setDrawColor(2, 111, 199)
+        doc.setLineWidth(0.5)
+        doc.line(x, 37, x + colWidth, 37)
+
+        // Recipe Header Info
+        doc.setFillColor(252, 253, 255)
+        doc.rect(x, 42, colWidth, 25, 'F')
+        doc.setDrawColor(235, 240, 245)
+        doc.rect(x, 42, colWidth, 25, 'S')
+
+        doc.setFontSize(10)
+        doc.setTextColor(40)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`RECETA MÉDICA Nro: ${receta.id}`, x + 5, 49)
+        
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100)
+        doc.text(`Fecha: ${receta.date}`, x + 5, 55)
+        doc.text(`Vence: ${receta.vigencia || '3 días'}`, x + colWidth - 5, 55, { align: 'right' })
+        
+        doc.setTextColor(60)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Paciente: ${patient.nombres} ${patient.apellidos}`, x + 5, 61)
+        doc.setFont('helvetica', 'normal')
+        const age = patient.fechaNacimiento ? new Date().getFullYear() - new Date(patient.fechaNacimiento).getFullYear() : '—'
+        const hc = `2026-${patient.id.substring(0,3).toUpperCase()}`
+        doc.text(`CI: ${patient.numeroDocumento || patient.id} • Edad: ${age} Años • HC: ${hc}`, x + 5, 64.5)
+
+        // Section Title
+        doc.setFillColor(245, 247, 250)
+        doc.rect(x, 72, colWidth, 8, 'F')
+        doc.setFontSize(9)
+        doc.setTextColor(2, 111, 199)
+        doc.setFont('helvetica', 'bold')
+        doc.text(type === 'rp' ? 'PRODUCTO / MEDICAMENTO (RP)' : 'INDICACIONES DE USO', x + 5, 77.5)
+
+        // List Medicines
+        let currentY = 88
+        const medicinesList = receta.medicines || []
+        medicinesList.forEach((med: any, i: number) => {
+          doc.setFontSize(10)
+          doc.setTextColor(30)
+          doc.setFont('helvetica', 'bold')
+          doc.text(`${i + 1}. ${med.generic} ${med.concentration ? `(${med.concentration})` : ''}`, x + 2, currentY)
+          
+          doc.setFontSize(8.5)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(80)
+          if (type === 'rp') {
+             const brandStr = med.brandName ? ` [Comercial: ${med.brandName}]` : ''
+             doc.text(`Cantidad: ${med.quantity} (${med.quantityLetters || '—'})${brandStr}`, x + 6, currentY + 5)
+             doc.text(`Presentación: ${med.form} • Vía: ${med.route || 'Oral'}`, x + 6, currentY + 9)
+          } else {
+             doc.setFont('helvetica', 'bold')
+             doc.setTextColor(50)
+             doc.text(`Dosis: ${med.dose}`, x + 6, currentY + 5)
+             doc.setFont('helvetica', 'normal')
+             doc.setTextColor(80)
+             doc.text(`Frecuencia: ${med.frequency} • Duración: ${med.duration}`, x + 6, currentY + 9)
+             if (med.indications) {
+                doc.setFont('helvetica', 'italic')
+                doc.setTextColor(100)
+                doc.text(`Obs: ${med.indications}`, x + 6, currentY + 13)
+                currentY += 4
+             }
+          }
+          
+          // Divider between meds
+          doc.setDrawColor(245)
+          doc.setLineWidth(0.2)
+          doc.line(x + 5, currentY + 12, x + colWidth - 5, currentY + 12)
+          
+          currentY += 18
+        })
+
+        // Diagnosis at bottom
+        doc.setFontSize(7)
+        doc.setTextColor(150)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`DIAGNÓSTICO: ${receta.diagnostico || 'Control prenatal de rutina'} (${receta.cie10 || 'Z34.0'})`, x, 165)
+
+        // Footer Firma
+        const footerY = 180
+        doc.setDrawColor(2, 111, 199)
+        doc.setLineWidth(0.6)
+        doc.line(x + (colWidth/4), footerY, x + (colWidth*3/4), footerY)
+        
+        doc.setFontSize(10)
+        doc.setTextColor(40)
+        doc.setFont('helvetica', 'bold')
+        const docName = receta.doctor?.name || 'Dra. Ana García'
+        doc.text(docName.toUpperCase(), x + (colWidth/2), footerY + 6, { align: 'center' })
+        
+        doc.setFontSize(8)
+        doc.setTextColor(100)
+        doc.setFont('helvetica', 'normal')
+        doc.text(receta.doctor?.specialty || 'Ginecología y Obstetricia', x + (colWidth/2), footerY + 10, { align: 'center' })
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(2, 111, 199)
+        doc.text(`REG. ACESS: ${receta.doctor?.acess || '7456-2026'}`, x + (colWidth/2), footerY + 14, { align: 'center' })
+      }
+
+      drawColumnContent(20, 'rp')
+      
+      // Vertical Divider
+      doc.setDrawColor(230)
+      doc.setLineWidth(0.3)
+      ;(doc as any).setLineDash([2, 2])
+      doc.line(midPoint, 10, midPoint, 200)
+      ;(doc as any).setLineDash([])
+
+      drawColumnContent(midPoint + 10, 'indications')
+
+      if (shouldDownload) {
+        doc.save(`Receta_${receta.id}_${patient.apellidos}.pdf`)
+      } else {
+        const blob = doc.output('blob')
+        const blobUrl = URL.createObjectURL(blob)
+        window.open(blobUrl, '_blank')
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error al generar la receta profesional.')
+    }
+  }
+
+  // Combine DB prescriptions and local storage ones safely, deduplicating by ID
+  const allPrescriptions = [...dbPrescriptions]
+  
+  localPrescriptions.forEach(lp => {
+    if (!allPrescriptions.some(dp => dp.id === lp.id || dp.secuencial === lp.id)) {
+      allPrescriptions.push(lp)
+    }
+  })
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-       {PRESCRIPTIONS.map((receta, i) => (
-          <div key={i} className="glass-card rounded-[2.5rem] p-8 border-white hover:shadow-xl transition-all">
-             <div className="flex items-center justify-between mb-6">
-                <div>
-                   <span className="text-[10px] font-black text-clinical-300 uppercase tracking-widest">{receta.id} • {receta.date}</span>
-                   <h4 className="text-lg font-black text-clinical-900 mt-0.5">Receta Médica</h4>
-                </div>
-                <span className={cn(
-                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                  receta.status === 'Activa' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-clinical-50 text-clinical-400 border-clinical-100"
-                )}>
-                   {receta.status}
-                </span>
-             </div>
-             <div className="space-y-3">
-                {receta.medicines.map((med, j) => (
-                   <div key={j} className="flex items-center gap-3 p-4 rounded-2xl bg-clinical-50/50 border border-clinical-100">
-                      <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-primary-600 shadow-sm"><Pill className="h-4 w-4" /></div>
-                      <span className="text-sm font-bold text-clinical-800">{med}</span>
-                   </div>
-                ))}
-             </div>
-             <div className="flex items-center gap-3 mt-8 pt-6 border-t border-clinical-100">
-                <Button variant="secondary" className="flex-1 h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-clinical-200">
-                   <Download className="h-4 w-4 mr-2" /> Descargar PDF
-                </Button>
-                <Button variant="secondary" className="h-10 w-10 p-0 rounded-xl border-clinical-200 text-clinical-400">
-                   <Eye className="h-5 w-5" />
-                </Button>
-             </div>
-          </div>
-       ))}
+    <div>
+      {allPrescriptions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-clinical-200">
+           <Pill className="h-12 w-12 text-clinical-200 mb-4" />
+           <p className="text-clinical-400 font-bold uppercase tracking-widest text-xs">No hay recetas registradas aún</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           {allPrescriptions.map((receta, i) => (
+              <div key={i} className="glass-card rounded-[2.5rem] p-8 border-white hover:shadow-xl transition-all">
+                 <div className="flex items-center justify-between mb-6">
+                    <div>
+                       <span className="text-[10px] font-black text-clinical-300 uppercase tracking-widest">{receta.id} • {receta.date}</span>
+                       <h4 className="text-lg font-black text-clinical-900 mt-0.5">Receta Médica</h4>
+                    </div>
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                      receta.status === 'Activa' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-clinical-50 text-clinical-400 border-clinical-100"
+                    )}>
+                       {receta.status}
+                    </span>
+                 </div>
+                 <div className="space-y-3">
+                    {(receta.medicines || []).map((med: any, j: number) => {
+                       const medStr = med.generic + (med.concentration ? ` (${med.concentration})` : '') + (med.brandName ? ` [Comercial: ${med.brandName}]` : '')
+                       return (
+                          <div key={j} className="flex items-center gap-3 p-4 rounded-2xl bg-clinical-50/50 border border-clinical-100">
+                             <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-primary-600 shadow-sm"><Pill className="h-4 w-4" /></div>
+                             <div className="flex-1">
+                                <span className="text-xs font-black text-clinical-900 block">{medStr}</span>
+                                <span className="text-[10px] font-bold text-clinical-400 block uppercase tracking-wider">{med.dose} • {med.frequency} • {med.duration}</span>
+                             </div>
+                          </div>
+                       )
+                    })}
+                 </div>
+                 <div className="flex items-center gap-3 mt-8 pt-6 border-t border-clinical-100">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => generatePDFForPrescription(receta, true)}
+                      className="flex-1 h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-clinical-200"
+                    >
+                       <Download className="h-4 w-4 mr-2" /> Descargar PDF
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => generatePDFForPrescription(receta, false)}
+                      className="h-10 w-10 p-0 rounded-xl border-clinical-200 text-clinical-400 flex items-center justify-center"
+                    >
+                       <Eye className="h-5 w-5" />
+                    </Button>
+                 </div>
+              </div>
+           ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function ControlPrenatalTab({ patient }: { patient: Patient }) {
+  const [activePregnancy, setActivePregnancy] = useState<any | null>(null)
+  const [controls, setControls] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const calculateGestationalAge = (fumDateStr: string) => {
+    const fum = new Date(fumDateStr)
+    const diffTime = Math.abs(new Date().getTime() - fum.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const weeks = Math.floor(diffDays / 7)
+    const days = diffDays % 7
+    return { weeks, days }
+  }
+
+  useEffect(() => {
+    if (!patient?.id) return
+    setLoading(true)
+    pregnancyService.getActive(patient.id)
+      .then(pregnancy => {
+        setActivePregnancy(pregnancy)
+        if (pregnancy) {
+          return pregnancyService.getControls(pregnancy.id)
+        }
+        return []
+      })
+      .then(controlsList => {
+        setControls(controlsList || [])
+      })
+      .catch(err => {
+        console.error('Error fetching prenatal controls:', err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [patient])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-clinical-100 shadow-premium">
+         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+         <p className="text-clinical-400 font-bold uppercase tracking-widest text-xs">Cargando monitoreo gestacional...</p>
+      </div>
+    )
+  }
+
+  if (!activePregnancy) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-clinical-200">
+         <Baby className="h-12 w-12 text-clinical-200 mb-4 opacity-40" />
+         <p className="text-clinical-800 font-black uppercase tracking-widest text-sm mb-2">Sin Embarazo Activo</p>
+         <p className="text-clinical-400 font-bold text-xs max-w-sm text-center px-4 leading-relaxed">No se encuentra ningún embarazo activo registrado para esta paciente en el sistema de obstetricia.</p>
+      </div>
+    )
+  }
+
+  const gestAge = calculateGestationalAge(activePregnancy.fum)
+
   return (
     <div className="space-y-8">
        <div className="bg-white rounded-[3rem] p-10 border border-clinical-100 shadow-premium relative overflow-hidden mb-10">
@@ -441,16 +784,19 @@ function ControlPrenatalTab({ patient }: { patient: Patient }) {
                    <div className="h-12 w-12 rounded-2xl bg-primary-50 flex items-center justify-center text-primary-600"><Baby className="h-8 w-8" /></div>
                    <h3 className="text-3xl font-black text-clinical-900 tracking-tight">Monitoreo Gestacional</h3>
                 </div>
-                <p className="text-clinical-500 max-w-md font-medium text-lg leading-relaxed">Actualmente en la semana <span className="text-primary-600 font-black">4 de gestación</span>. El desarrollo fetal se encuentra dentro de los parámetros normales.</p>
+                <p className="text-clinical-500 max-w-md font-medium text-lg leading-relaxed">
+                   Actualmente en la semana <span className="text-primary-600 font-black">{gestAge.weeks} de gestación</span> (y {gestAge.days} días). 
+                   FPP calculada: <span className="font-bold text-clinical-850">{new Date(activePregnancy.fpp).toLocaleDateString('es-EC')}</span>.
+                </p>
              </div>
              <div className="flex gap-4">
                 <div className="px-8 py-5 bg-clinical-50 rounded-[2rem] border border-clinical-100 text-center min-w-[140px] shadow-inner">
                    <p className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2">Semana</p>
-                   <p className="text-3xl font-black text-clinical-900">04</p>
+                   <p className="text-3xl font-black text-clinical-900">{String(gestAge.weeks).padStart(2, '0')}</p>
                 </div>
                 <div className="px-8 py-5 bg-clinical-50 rounded-[2rem] border border-clinical-100 text-center min-w-[140px] shadow-inner">
                    <p className="text-[10px] font-black text-clinical-400 uppercase tracking-widest mb-2">Días</p>
-                   <p className="text-3xl font-black text-primary-600">28</p>
+                   <p className="text-3xl font-black text-primary-600">{gestAge.days}</p>
                 </div>
              </div>
           </div>
@@ -458,34 +804,80 @@ function ControlPrenatalTab({ patient }: { patient: Patient }) {
 
        <div className="w-full">
           <h3 className="text-lg font-bold text-clinical-900 mb-8 tracking-tight">Timeline de Evolución Prenatal</h3>
-          <div className="space-y-0 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-[3px] before:bg-clinical-100 before:rounded-full">
-             {[
-               { sem: '4', date: '10 May 2026', obs: 'Saco gestacional visible. Latido ausente por edad gestacional.', symp: 'Náuseas leves, fatiga' },
-               { sem: '2', date: '15 Abr 2026', obs: 'Confirmación de embarazo. Se inicia suplementación.', symp: 'Retraso menstrual' },
-             ].map((visit, i) => (
-                <div key={i} className="relative pl-16 pb-12 last:pb-0">
-                   <div className="absolute left-0 h-12 w-12 rounded-2xl bg-accent-50 border-4 border-white flex items-center justify-center text-accent-600 shadow-sm z-10">
-                      <Baby className="h-5 w-5" />
-                   </div>
-                   <div className="glass-card rounded-[2.5rem] p-8 border-white">
-                      <div className="flex items-center justify-between mb-4">
-                         <h4 className="text-lg font-black text-clinical-900">Semana {visit.sem} de Gestación</h4>
-                         <span className="text-[10px] font-black text-clinical-300 uppercase tracking-widest">{visit.date}</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="p-5 rounded-2xl bg-clinical-50/50 border border-clinical-100">
-                            <p className="text-[9px] font-black text-clinical-400 uppercase tracking-widest mb-2">Hallazgos & Observaciones</p>
-                            <p className="text-xs font-bold text-clinical-800 italic">"{visit.obs}"</p>
+          {controls.length === 0 ? (
+             <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[2.5rem] border border-dashed border-clinical-200">
+                <Baby className="h-10 w-10 text-clinical-200 mb-3 opacity-20" />
+                <p className="text-clinical-400 font-bold uppercase tracking-widest text-[10px]">No hay controles registrados para este embarazo aún</p>
+             </div>
+          ) : (
+             <div className="space-y-0 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-[3px] before:bg-clinical-100 before:rounded-full">
+                {controls.map((control, i) => {
+                   const weeks = Math.floor(control.gestationalAge)
+                   const days = Math.round((control.gestationalAge - weeks) * 10)
+                   const controlDateStr = new Date(control.controlDate).toLocaleDateString('es-EC', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                   })
+
+                   return (
+                      <div key={control.id || i} className="relative pl-16 pb-12 last:pb-0">
+                         <div className="absolute left-0 h-12 w-12 rounded-2xl bg-accent-50 border-4 border-white flex items-center justify-center text-accent-600 shadow-sm z-10">
+                            <Baby className="h-5 w-5" />
                          </div>
-                         <div className="p-5 rounded-2xl bg-rose-50/30 border border-rose-100/50">
-                            <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-2">Síntomas Reportados</p>
-                            <p className="text-xs font-bold text-rose-700">{visit.symp}</p>
+                         <div className="glass-card rounded-[2.5rem] p-8 border-white">
+                            <div className="flex items-center justify-between mb-4">
+                               <h4 className="text-lg font-black text-clinical-900">Semana {weeks} de Gestación {days > 0 ? `+ ${days}d` : ''}</h4>
+                               <span className="text-[10px] font-black text-clinical-300 uppercase tracking-widest">{controlDateStr}</span>
+                            </div>
+                            
+                            {control.observations && (
+                               <p className="text-sm font-medium text-clinical-600 mb-6 leading-relaxed bg-clinical-50/30 p-4 rounded-xl border border-clinical-100/50 italic">
+                                  "{control.observations}"
+                               </p>
+                            )}
+
+                            {/* Plan de indicación obstétrica */}
+                            {control.plan && (
+                               <div className="mb-6 p-4 rounded-xl bg-primary-50/20 border border-primary-100/30">
+                                  <p className="text-[9px] font-black text-primary-600 uppercase tracking-widest mb-1">Plan de Indicación Obstétrica</p>
+                                  <p className="text-xs font-bold text-clinical-850">{control.plan}</p>
+                               </div>
+                            )}
+
+                            {/* Parámetros clínicos del control */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-clinical-100/50">
+                               {control.maternalWeight && (
+                                  <div className="bg-clinical-50/50 p-3 rounded-xl border border-clinical-100/50 text-center">
+                                     <span className="text-[8px] font-black text-clinical-300 uppercase tracking-widest block mb-1">Peso Materno</span>
+                                     <span className="text-xs font-black text-clinical-850">{control.maternalWeight} kg</span>
+                                  </div>
+                               )}
+                               {control.bloodPressure && (
+                                  <div className="bg-clinical-50/50 p-3 rounded-xl border border-clinical-100/50 text-center">
+                                     <span className="text-[8px] font-black text-clinical-300 uppercase tracking-widest block mb-1">P. Arterial</span>
+                                     <span className="text-xs font-black text-clinical-850">{control.bloodPressure}</span>
+                                  </div>
+                               )}
+                               {control.fetalHeartRate && (
+                                  <div className="bg-clinical-50/50 p-3 rounded-xl border border-clinical-100/50 text-center">
+                                     <span className="text-[8px] font-black text-clinical-300 uppercase tracking-widest block mb-1">FC Fetal</span>
+                                     <span className="text-xs font-black text-primary-600">{control.fetalHeartRate} lpm</span>
+                                  </div>
+                               )}
+                               {control.uterineHeight && (
+                                  <div className="bg-clinical-50/50 p-3 rounded-xl border border-clinical-100/50 text-center">
+                                     <span className="text-[8px] font-black text-clinical-300 uppercase tracking-widest block mb-1">Alt. Uterina</span>
+                                     <span className="text-xs font-black text-clinical-850">{control.uterineHeight} cm</span>
+                                  </div>
+                               )}
+                            </div>
                          </div>
                       </div>
-                   </div>
-                </div>
-             ))}
-          </div>
+                   )
+                })}
+             </div>
+          )}
        </div>
     </div>
   )

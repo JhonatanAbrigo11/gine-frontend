@@ -11,4 +11,11 @@ export interface BusinessSettings {
   billingSeries: string | null
   billingNextNumber: number
   currency: string
+  recipeDoctorName: string | null
+  recipeDoctorSpecialty: string | null
+  recipeDoctorAcess: string | null
+  recipeDefaultCity: string | null
+  recipeDefaultAllergies: string | null
+  recipeDefaultValidityDays: string | null
+  recipeLogoUrl: string | null
 }

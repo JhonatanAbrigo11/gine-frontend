@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 
 import { AuthenticatedShellLayout } from '@/app/layouts/AuthenticatedShellLayout'
 import { useAuth } from '@/features/login/model/auth-context'
-import { ConfiguracionPage } from '@/pages/configuracion-page'
+import { ConfiguracionPage, ConfiguracionRecetasPage, ConfiguracionMedicamentosPage } from '@/pages/configuracion-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { PacientesPage } from '@/pages/pacientes-page'
 import { PacienteDetallePage } from '@/pages/paciente-detalle-page'
@@ -29,7 +29,7 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path={ROUTES.home} element={<LandingPage />} />
+      <Route path={ROUTES.home} element={<LoginPage />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.confirmacion} element={<ConfirmacionCitaPage />} />
       
@@ -62,6 +62,8 @@ export function AppRoutes() {
         <Route path={ROUTES.controlObstetricoDetalle} element={<ObstetriciaDetallePage />} />
         
         <Route path={ROUTES.configuracion} element={<ConfiguracionPage />} />
+        <Route path={ROUTES.configuracionRecetas} element={<ConfiguracionRecetasPage />} />
+        <Route path={ROUTES.configuracionMedicamentos} element={<ConfiguracionMedicamentosPage />} />
       </Route>
       
       <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
