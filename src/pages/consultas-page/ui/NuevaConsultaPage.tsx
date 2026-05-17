@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -27,7 +27,8 @@ import {
   ExternalLink,
   Loader2,
   ClipboardList,
-  Droplet
+  Droplet,
+  TrendingUp
 } from 'lucide-react'
 import { ResultsManagerModal } from '../../ordenes-page/ui/organisms/ResultsManagerModal'
 import { orderService } from '@/modules/orders/services/order.service'
@@ -65,7 +66,7 @@ export function NuevaConsultaPage() {
   // Refrescar datos de la consulta para ver cambios en órdenes
   const refreshData = async () => {
     if (consultationId) {
-      const data = await axios.get(`http://localhost:3001/api/consultations/${consultationId}`).then(res => res.data)
+      const data = await axios.get(`http://127.0.0.1:3001/api/consultations/${consultationId}`).then(res => res.data)
       loadConsultation(data)
     }
   }
@@ -75,6 +76,8 @@ export function NuevaConsultaPage() {
   const { patientId } = useParams()
   const location = useLocation()
   const consultationId = location.state?.consultationId
+  const isObstetricRoute = location.pathname.startsWith('/control-obstetrico')
+
   const { 
     consultation, 
     patient, 
@@ -82,11 +85,55 @@ export function NuevaConsultaPage() {
     loading: storeLoading, 
     initConsultation,
     loadConsultation,
+    originalConsultation,
     reset 
   } = useConsultationStore()
 
+  const isPregnant = isObstetricRoute || consultation?.type === 'Control Prenatal'
+
+  const dynamicTabs = useMemo(() => {
+    return TABS.map(tab => {
+      if (tab.id === 'ginecologia' && isPregnant) {
+        return { ...tab, label: 'Obstetricia', icon: Baby }
+      }
+      return tab
+    })
+  }, [isPregnant])
+
+  const isDirty = useMemo(() => {
+    if (!consultation || !originalConsultation) return false;
+    return JSON.stringify(consultation) !== originalConsultation;
+  }, [consultation, originalConsultation]);
+
+  // Interceptar recarga / cierre de pestaña del navegador
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Tiene cambios sin guardar en la consulta. ¿Está seguro que desea salir?';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
+  const handleCancelExit = () => {
+    setShowExitConfirm(false);
+  };
+
+  const handleDiscardAndExit = () => {
+    setShowExitConfirm(false);
+    navigate(isObstetricRoute ? '/control-obstetrico' : '/consultas');
+  };
+
   const [localLoading, setLocalLoading] = useState(false)
   const isEditMode = !!consultationId
+
+
 
   useEffect(() => {
     if (consultationId) {
@@ -104,10 +151,20 @@ export function NuevaConsultaPage() {
       }
       fetchEditData()
     } else if (patientId) {
-      consultationService.init(patientId).then(initConsultation)
+      consultationService.init(patientId).then((data) => {
+        initConsultation(data)
+        const initialType = location.state?.initialType || (isObstetricRoute ? 'Control Prenatal' : null)
+        if (initialType) {
+          useConsultationStore.getState().updateConsultation({ type: initialType })
+          const current = useConsultationStore.getState().consultation
+          if (current) {
+            useConsultationStore.setState({ originalConsultation: JSON.stringify(current) })
+          }
+        }
+      })
     }
     return () => reset()
-  }, [patientId, consultationId])
+  }, [patientId, consultationId, location.state])
 
   // Limpieza de URL en caliente: Si el usuario recarga una URL antigua con UUID, lo redirigimos silenciosamente a la cédula
   useEffect(() => {
@@ -119,7 +176,7 @@ export function NuevaConsultaPage() {
     }
   }, [patient, patientId, location.pathname, location.state, navigate])
 
-  const handleSave = async () => {
+  const handleSave = async (redirectPath?: string) => {
     if (!consultation) return
     try {
       setLocalLoading(true)
@@ -130,15 +187,40 @@ export function NuevaConsultaPage() {
         await consultationService.save(consultation)
         showToast('Consulta clínica guardada con éxito', 'success')
       }
-      navigate('/consultas')
+      
+      // Actualizar originalConsultation para limpiar estado dirty
+      useConsultationStore.setState({ originalConsultation: JSON.stringify(consultation) })
+      
+      setShowExitConfirm(false)
+      navigate(redirectPath || (isObstetricRoute ? '/control-obstetrico' : '/consultas'))
+      return true
     } catch (error: any) {
       console.error('Error saving:', error)
       const errorMsg = error?.response?.data?.error || 'Error al guardar la consulta clínica'
       showToast(errorMsg, 'error', 10000)
+      return false
     } finally {
       setLocalLoading(false)
     }
   }
+
+  // Patrón de Sincronización de Refs para evitar bucles infinitos de renderizado
+  const handleSaveRef = useRef(handleSave);
+  
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
+  useEffect(() => {
+    useConsultationStore.setState({
+      saveHandler: async (redirectPath?: string) => {
+        return await handleSaveRef.current(redirectPath);
+      }
+    });
+    return () => {
+      useConsultationStore.setState({ saveHandler: null });
+    };
+  }, []); // Mount/Unmount solo una vez!
 
   if (localLoading || !consultation || !patient) {
     return (
@@ -148,7 +230,7 @@ export function NuevaConsultaPage() {
     )
   }
 
-  const isPregnant = !!consultation.gynecology?.fum
+  // const isPregnant = consultation.type === 'Control Prenatal'
   const patientAge = patient.edad || '—'
 
   return (
@@ -159,7 +241,13 @@ export function NuevaConsultaPage() {
           <div className="px-6 py-4 flex items-center justify-between border-b border-clinical-50">
             <div className="flex items-center gap-6">
               <button 
-                onClick={() => setShowExitConfirm(true)} 
+                onClick={() => {
+                  if (isDirty) {
+                    setShowExitConfirm(true)
+                  } else {
+                    navigate(isObstetricRoute ? '/control-obstetrico' : '/consultas')
+                  }
+                }} 
                 className="h-10 w-10 rounded-2xl bg-clinical-50 flex items-center justify-center text-clinical-400 hover:text-primary-600 transition-all border border-clinical-100 shadow-sm"
               >
                 <ChevronLeft className="h-6 w-6" />
@@ -185,14 +273,20 @@ export function NuevaConsultaPage() {
              <Button 
                variant="ghost" 
                className="h-11 px-6 rounded-2xl font-bold text-clinical-500 hover:text-clinical-900"
-               onClick={() => setShowExitConfirm(true)}
+               onClick={() => {
+                 if (isDirty) {
+                   setShowExitConfirm(true)
+                 } else {
+                   navigate(isObstetricRoute ? '/control-obstetrico' : '/consultas')
+                 }
+               }}
              >
                {isEditMode ? 'Cancelar Edición' : 'Descartar'}
              </Button>
              <Button 
                variant="primary" 
                className="rounded-2xl h-11 px-8 shadow-xl shadow-primary-200 font-bold tracking-tight group"
-               onClick={handleSave}
+               onClick={() => handleSave()}
                disabled={localLoading}
              >
                {localLoading ? (
@@ -208,19 +302,21 @@ export function NuevaConsultaPage() {
           </div>
 
           {/* Status Indicators only */}
-          <div className="px-6 py-3 bg-clinical-50/30 flex items-center justify-end">
-             <div className="flex gap-2">
-                <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-tighter border border-emerald-200">Embarazada</span>
-                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-tighter border border-amber-200">Control Prenatal</span>
+          {isPregnant && (
+             <div className="px-6 py-3 bg-clinical-50/30 flex items-center justify-end">
+                <div className="flex gap-2">
+                   <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-tighter border border-emerald-200">Embarazada</span>
+                   <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-tighter border border-amber-200">Control Prenatal</span>
+                </div>
              </div>
-          </div>
+          )}
         </div>
       </header>
 
       {/* Tabs Navigation */}
       <nav className="bg-white border-b border-clinical-100 sticky top-[138px] z-40">
          <div className="max-w-7xl mx-auto px-6 flex gap-1">
-            {TABS.map(tab => {
+            {dynamicTabs.map(tab => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
               return (
@@ -249,7 +345,7 @@ export function NuevaConsultaPage() {
                   {activeTab === 'signos' && <SignosVitalesTab isPregnant={isPregnant} />}
                   {activeTab === 'ginecologia' && <GinecologiaTab isPregnant={isPregnant} />}
                   {activeTab === 'diagnostico' && <DiagnosticoTab />}
-                  {activeTab === 'plan' && <PlanTab onSave={handleSave} />}
+                  {activeTab === 'plan' && <PlanTab onSave={async () => { await handleSave(); }} />}
                   {activeTab === 'documentos' && <DocumentosTab onOpenResults={(order) => {
                 setSelectedOrder(order)
                 setShowResultsModal(true)
@@ -271,17 +367,38 @@ export function NuevaConsultaPage() {
       <AnimatePresence>
          {showExitConfirm && (
            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExitConfirm(false)} className="absolute inset-0 bg-clinical-900/60 backdrop-blur-md" />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCancelExit} className="absolute inset-0 bg-clinical-900/60 backdrop-blur-md" />
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center"
+                className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center border border-clinical-100"
               >
-                 <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6"><AlertCircle className="h-8 w-8" /></div>
-                 <h3 className="text-xl font-bold text-clinical-900 mb-2">¿Salir de la Consulta?</h3>
-                 <p className="text-sm text-clinical-500 mb-8">Los cambios no guardados se perderán. ¿Desea continuar?</p>
-                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => setShowExitConfirm(false)} className="h-12 rounded-xl border border-clinical-100 text-xs font-bold uppercase tracking-widest text-clinical-400">Cancelar</button>
-                    <button onClick={() => navigate('/consultas')} className="h-12 rounded-xl bg-primary-600 text-white text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary-100">Sí, Salir</button>
+                 <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm"><AlertCircle className="h-8 w-8" /></div>
+                 <h3 className="text-xl font-black text-clinical-900 mb-2">¿Cambios sin Guardar?</h3>
+                 <p className="text-sm font-medium text-clinical-500 mb-8">Hay modificaciones en la consulta de <span className="font-bold text-clinical-850">{patient.nombres} {patient.apellidos}</span> que no se han guardado aún.</p>
+                 
+                 <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={() => handleSave()}
+                      className="h-13 rounded-2xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary-200 transition-all flex items-center justify-center gap-2"
+                    >
+                       <Save className="h-4 w-4" />
+                       Guardar Cambios y Salir
+                    </button>
+                    
+                    <button 
+                      onClick={handleDiscardAndExit} 
+                      className="h-13 rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50/50 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                       <Trash2 className="h-4 w-4" />
+                       Salir de todos modos (Sin guardar)
+                    </button>
+                    
+                    <button 
+                      onClick={handleCancelExit} 
+                      className="h-11 rounded-2xl bg-clinical-50 text-clinical-450 hover:bg-clinical-100/50 text-xs font-bold uppercase tracking-widest transition-all"
+                    >
+                       Cancelar y Seguir Editando
+                    </button>
                  </div>
               </motion.div>
            </div>
@@ -408,7 +525,49 @@ function GinecologiaTab({ isPregnant }: { isPregnant: boolean }) {
 
   const g = consultation.gynecology
 
-  // Lógica de cálculo de ciclo para el calendario
+  // Lógica de cálculo obstétrico automático
+  const obstetricCalc = useMemo(() => {
+    if (!g.fum) return null
+    try {
+      const fumDate = new Date(g.fum)
+      const today = new Date()
+      
+      const fppDate = new Date(fumDate.getTime() + 280 * 24 * 60 * 60 * 1000)
+      
+      const diffTime = today.getTime() - fumDate.getTime()
+      const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+      const weeks = Math.floor(diffDays / 7)
+      const remainingDays = diffDays % 7
+      const egString = `${weeks}.${remainingDays} Semanas`
+
+      let trimester = 'Primer Trimestre'
+      if (weeks >= 13 && weeks < 28) {
+        trimester = 'Segundo Trimestre'
+      } else if (weeks >= 28) {
+        trimester = 'Tercer Trimestre'
+      }
+      
+      return {
+        fpp: fppDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
+        eg: egString,
+        weeks,
+        trimester
+      }
+    } catch (e) {
+      return null
+    }
+  }, [g.fum])
+
+  useEffect(() => {
+    if (obstetricCalc) {
+      updateGynecology({
+        fpp: obstetricCalc.fpp,
+        eg: obstetricCalc.eg
+      })
+    }
+  }, [obstetricCalc, updateGynecology])
+
+  // Lógica de cálculo de ciclo para el calendario (Ginecología estándar)
   const cycleInfo = useMemo(() => {
     if (!g.fum) return null
     const fumDate = new Date(g.fum)
@@ -418,6 +577,109 @@ function GinecologiaTab({ isPregnant }: { isPregnant: boolean }) {
     return { fumDate, cycle, mensesDuration: duration }
   }, [g.fum, g.ciclo, g.duracion])
 
+  // ----------------------------------------------------
+  // VISTA 1: OBSTETRICIA PREMIUM (CONTROL PRENATAL)
+  // ----------------------------------------------------
+  if (isPregnant) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12">
+        <div className="space-y-10">
+          {/* Seguimiento Gestacional */}
+          <FormSection title="Seguimiento Gestacional" icon={<Baby className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-clinical-400 mb-2 block ml-1">F.U.M. (Fecha Última Menstruación)</label>
+                <input 
+                  type="date" 
+                  value={g.fum ? g.fum.split('T')[0] : ''}
+                  onChange={(e) => updateGynecology({ fum: e.target.value })}
+                  className="w-full h-12 px-5 rounded-2xl bg-clinical-50 border-none ring-1 ring-clinical-100 text-sm font-bold text-clinical-900 focus:ring-2 focus:ring-primary-500 outline-none" 
+                />
+              </div>
+
+              {obstetricCalc ? (
+                <div className="p-6 rounded-[2rem] bg-primary-50 border border-primary-100 flex flex-col justify-between shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+                    <Baby className="h-20 w-20 text-primary-600 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-primary-400 uppercase tracking-widest block mb-1">Cálculo Gestacional</span>
+                    <p className="text-xl font-black text-primary-700 leading-tight">{obstetricCalc.eg}</p>
+                    <p className="text-xs font-semibold text-clinical-500 mt-1">{obstetricCalc.trimester}</p>
+                  </div>
+                  <div className="mt-4 border-t border-primary-200/50 pt-3">
+                    <span className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest block mb-1">F.P.P. (Fecha Probable de Parto)</span>
+                    <p className="text-xs font-black text-clinical-800">{obstetricCalc.fpp}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 rounded-[2rem] bg-clinical-50 border border-clinical-100 flex flex-col items-center justify-center text-center opacity-65">
+                  <AlertCircle className="h-6 w-6 text-clinical-400 mb-2" />
+                  <p className="text-xs font-bold text-clinical-500 uppercase tracking-widest">Ingrese la F.U.M.</p>
+                  <p className="text-[10px] text-clinical-400 mt-1">Para calcular automáticamente semanas y FPP</p>
+                </div>
+              )}
+            </div>
+          </FormSection>
+
+          {/* Fórmula Obstétrica */}
+          <FormSection title="Fórmula Obstétrica" icon={<TrendingUp className="h-4 w-4" />}>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-6">
+              <SignoInput label="Gestas (G)" value={g.gestas || 0} onChange={(v) => updateGynecology({ gestas: parseInt(v) || 0 })} />
+              <SignoInput label="Partos (P)" value={g.partos || 0} onChange={(v) => updateGynecology({ partos: parseInt(v) || 0 })} />
+              <SignoInput label="Cesáreas (C)" value={g.cesareas || 0} onChange={(v) => updateGynecology({ cesareas: parseInt(v) || 0 })} />
+              <SignoInput label="Abortos (A)" value={g.abortos || 0} onChange={(v) => updateGynecology({ abortos: parseInt(v) || 0 })} />
+              <SignoInput label="Hijos Vivos (HV)" value={g.hijosVivos || 0} onChange={(v) => updateGynecology({ hijosVivos: parseInt(v) || 0 })} />
+              <SignoInput label="Ectópicos (E)" value={g.ectopicos || 0} onChange={(v) => updateGynecology({ ectopicos: parseInt(v) || 0 })} />
+            </div>
+          </FormSection>
+
+          {/* Observaciones Obstétricas */}
+          <FormSection title="Observaciones Obstétricas" icon={<Stethoscope className="h-4 w-4" />}>
+            <textarea 
+              value={g.observaciones || ''}
+              onChange={(e) => updateGynecology({ observaciones: e.target.value })}
+              className="w-full h-32 rounded-[2rem] bg-clinical-50/50 border-none ring-1 ring-clinical-100 p-6 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none" 
+              placeholder="Notas adicionales del control prenatal..." 
+            />
+          </FormSection>
+        </div>
+
+        {/* Barra Lateral Obstétrica */}
+        <div className="flex flex-col items-center w-full">
+          <div className="w-full bg-primary-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl shadow-primary-200 flex flex-col justify-between min-h-[340px]">
+            <div className="absolute top-0 right-0 p-8 opacity-10"><Baby className="h-28 w-28" /></div>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] mb-4 text-primary-100 block">Monitoreo Obstétrico</span>
+              <h4 className="text-3xl font-black tracking-tight leading-tight mb-2">Control Prenatal</h4>
+              <p className="text-xs text-primary-100/70 leading-relaxed mb-6">Registre las mediciones en cada consulta para construir el historial prenatal y realizar el seguimiento evolutivo de la gestación.</p>
+            </div>
+            
+            {obstetricCalc && (
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
+                <span className="text-[9px] font-black text-primary-200 uppercase tracking-widest block mb-1">Edad Gestacional</span>
+                <p className="text-lg font-black text-white">{obstetricCalc.eg}</p>
+                <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div 
+                    className="bg-white h-full rounded-full transition-all duration-550" 
+                    style={{ width: `${Math.min((obstetricCalc.weeks / 40) * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[8px] font-black text-primary-200 uppercase mt-1.5">
+                  <span>Sem 0</span>
+                  <span>Sem 40</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ----------------------------------------------------
+  // VISTA 2: GINECOLOGÍA ESTÁNDAR
+  // ----------------------------------------------------
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12">
        <div className="space-y-10">

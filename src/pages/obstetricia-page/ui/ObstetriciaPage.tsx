@@ -1,233 +1,328 @@
-import { useState, useMemo, cloneElement } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Plus, 
-  Users, 
-  Calendar, 
-  AlertTriangle, 
-  Baby, 
-  Search, 
-  Filter,
-  ChevronRight,
-  Stethoscope,
-  Heart,
-  Activity,
-  FileText,
-  Clock,
-  History,
-  TrendingUp,
-  ClipboardList
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import {
+  Plus, Baby, TrendingUp, Calendar, AlertTriangle, Heart,
+  Activity, Users, Search, X, Loader2, ChevronRight
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
-import { useNavigate } from 'react-router-dom'
+import { useToast } from '@/shared/ui/ToastContext'
+import { API_URL } from '@/shared/api/base'
+import { PatientSearchModal } from '@/pages/consultas-page/ui/organisms/PatientSearchModal'
+import {
+  useActivePregnanciesList,
+  useActivePregnancy,
+  useCreatePregnancy,
+} from '@/entities/pregnancy'
+import type { RiskLevel } from '@/entities/pregnancy'
 
-/* ==================================================
-   TYPES & CONSTANTS
-   ================================================== */
-
-type ObstetricRisk = 'Normal' | 'Riesgo moderado' | 'Alto riesgo' | 'Próximo parto'
-
-interface PregnantPatient {
-  id: string
-  name: string
-  age: string
-  eg: string // Edad Gestacional (Semanas)
-  fpp: string // Fecha Probable Parto
-  lastControl: string
-  nextControl: string
-  risk: ObstetricRisk
-  status: string
-  doctor: string
+const RISK_CONFIG: Record<RiskLevel, { label: string; color: string }> = {
+  sin_riesgo: { label: 'Sin Riesgo',   color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  bajo:       { label: 'Riesgo Bajo',  color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  alto:       { label: 'Riesgo Alto',  color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  muy_alto:   { label: 'Riesgo Muy Alto', color: 'bg-rose-50 text-rose-700 border-rose-200' },
 }
 
-const MOCK_PREGNANT: PregnantPatient[] = [
-  { id: '1', name: 'Ana García López', age: '28', eg: '24.2', fpp: '12 Sep 2026', lastControl: '10 May', nextControl: '16 May', risk: 'Normal', status: 'Activo', doctor: 'Dra. Ana García' },
-  { id: '2', name: 'María Rodríguez', age: '32', eg: '12.5', fpp: '05 Dic 2026', lastControl: '02 May', nextControl: '30 May', risk: 'Riesgo moderado', status: 'Activo', doctor: 'Dra. Ana García' },
-  { id: '3', name: 'Carla Méndez', age: '25', eg: '36.1', fpp: '20 Jun 2026', lastControl: '12 May', nextControl: '19 May', risk: 'Próximo parto', status: 'Activo', doctor: 'Dr. Wilson Mora' },
-  { id: '4', name: 'Lucía Fernández', age: '30', eg: '18.4', fpp: '22 Oct 2026', lastControl: '05 May', nextControl: '03 Jun', risk: 'Alto riesgo', status: 'Crítico', doctor: 'Dra. Sofía Ruiz' },
-]
-
-const RISK_COLORS: Record<ObstetricRisk, { bg: string, text: string, border: string }> = {
-  'Normal': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100' },
-  'Riesgo moderado': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100' },
-  'Alto riesgo': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-100' },
-  'Próximo parto': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-100' },
+function calcularEGActual(fum: string): string {
+  const fumDate = new Date(fum)
+  const hoy = new Date()
+  const diffDays = Math.floor((hoy.getTime() - fumDate.getTime()) / (1000 * 60 * 60 * 24))
+  return (diffDays / 7).toFixed(1)
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+function calcularTrimestre(eg: number): string {
+  if (eg < 13) return '1er Trimestre'
+  if (eg < 27) return '2do Trimestre'
+  return '3er Trimestre'
 }
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
+// ─── Modal: Configurar Gestación (Iniciar Embarazo) ───────────────────
+
+interface StartPregnancyModalProps {
+  isOpen: boolean
+  onClose: () => void
+  patient: any
+  onSubmit: (fum: string, weight: string, height: string) => Promise<void>
+  loading: boolean
 }
 
-/* ==================================================
-   MAIN COMPONENT
-   ================================================== */
-
-export function ObstetriciaPage() {
-  const navigate = useNavigate()
-  const [searchQuery, setSearchQuery] = useState('')
-
+function StartPregnancyModal({ isOpen, onClose, patient, onSubmit, loading }: StartPregnancyModalProps) {
+  if (!isOpen) return null
   return (
-    <div className="min-h-dvh bg-clinical-50/50">
-      <motion.div initial="hidden" animate="visible" variants={containerVariants} className="mx-auto max-w-7xl px-6 py-10">
-        
-        {/* Header Section */}
-        <motion.header variants={itemVariants} className="flex flex-col gap-6 mb-10 sm:flex-row sm:items-end sm:justify-between">
-           <div>
-              <div className="flex items-center gap-2 mb-2">
-                 <div className="h-2 w-12 bg-primary-500 rounded-full" />
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600/70">Módulo de Seguimiento</span>
-              </div>
-              <h1 className="text-4xl font-black tracking-tight text-clinical-900 mb-2">Control <span className="text-primary-700">Obstétrico</span></h1>
-              <p className="text-sm text-clinical-800/60 max-w-md">Monitoreo prenatal y evolución gestacional de pacientes activas.</p>
-           </div>
-           <div className="flex items-center gap-3">
-              <Button variant="primary" className="shadow-lg shadow-primary-200 h-12 rounded-2xl px-6">
-                 <Plus className="h-5 w-5 mr-2" /> Nuevo Control
-              </Button>
-           </div>
-        </motion.header>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-clinical-900/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl z-10 overflow-hidden"
+      >
+        <header className="flex items-center justify-between px-8 py-6 border-b border-clinical-100 bg-clinical-50/50">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-primary-600 text-white flex items-center justify-center shadow-lg">
+              <Baby className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-clinical-900">Iniciar Control Prenatal</h2>
+              <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">Configurar gestación actual</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-9 w-9 flex items-center justify-center rounded-xl bg-white border border-clinical-200 text-clinical-400 hover:text-rose-600">
+            <X className="h-4 w-4" />
+          </button>
+        </header>
 
-        {/* Quick Actions / Dashboard Stats */}
-        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-           <QuickStatCard icon={<Baby className="h-6 w-6" />} label="Pacientes Embarazadas" value="24" color="primary" />
-           <QuickStatCard icon={<ClipboardList className="h-6 w-6" />} label="Controles de Hoy" value="8" color="indigo" />
-           <QuickStatCard icon={<AlertTriangle className="h-6 w-6" />} label="Alertas de Riesgo" value="3" color="rose" />
-           <QuickStatCard icon={<Calendar className="h-6 w-6" />} label="Calendario Prenatal" value="Ver" color="clinical" isAction />
-        </motion.div>
-
-        {/* Filters Bar */}
-        <motion.div variants={itemVariants} className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center">
-           <div className="relative flex-1 max-w-md group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-300 group-focus-within:text-primary-500 transition-colors">
-                 <Search className="h-4 w-4" />
-              </span>
-              <input 
-                type="text" 
-                placeholder="Buscar paciente embarazada..." 
-                className="w-full h-12 rounded-2xl border-0 bg-white pl-11 pr-4 text-sm shadow-premium ring-1 ring-inset ring-primary-100/50 focus:ring-2 focus:ring-primary-500 outline-none font-medium"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-           </div>
-           <div className="flex gap-3">
-              <FilterButton icon={<Filter className="h-4 w-4" />} label="Filtrar por Riesgo" />
-              <FilterButton icon={<Users className="h-4 w-4" />} label="Especialista" />
-           </div>
-        </motion.div>
-
-        {/* Patients List */}
-        <div className="space-y-4">
-           {MOCK_PREGNANT.map((patient) => (
-             <PregnantPatientRow 
-               key={patient.id} 
-               patient={patient} 
-               onClick={() => navigate(`/control-obstetrico/${patient.id}`)}
-             />
-           ))}
-        </div>
-
+        <StartPregnancyForm
+          patient={patient}
+          onSubmit={onSubmit}
+          onCancel={onClose}
+          loading={loading}
+        />
       </motion.div>
     </div>
   )
 }
 
-/* ==================================================
-   SUB-COMPONENTS
-   ================================================== */
+// ─── Subformulario: Iniciar Embarazo ────────────────────────────────────────
 
-function QuickStatCard({ icon, label, value, color, isAction = false }: any) {
-  const colorMap = {
-    primary: { icon: 'bg-primary-50 text-primary-600', accent: 'border-l-primary-500' },
-    indigo: { icon: 'bg-indigo-50 text-indigo-600', accent: 'border-l-indigo-500' },
-    rose: { icon: 'bg-rose-50 text-rose-600', accent: 'border-l-rose-500' },
-    clinical: { icon: 'bg-clinical-50 text-clinical-400', accent: 'border-l-clinical-200' }
+function StartPregnancyForm({ patient, onSubmit, onCancel, loading }: any) {
+  const [fum, setFum] = useState('')
+  const [weight, setWeight] = useState('')
+  const [height, setHeight] = useState('')
+
+  return (
+    <div className="p-8 space-y-6">
+      <div className="p-4 rounded-2xl bg-primary-50 border border-primary-100">
+        <p className="text-[10px] font-black text-primary-500 uppercase tracking-widest">Iniciar Embarazo para:</p>
+        <p className="text-base font-black text-primary-900 mt-1">{patient?.nombres} {patient?.apellidos}</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="block text-[10px] font-black uppercase tracking-widest text-clinical-500">F.U.M. (Fecha Última Menstruación) *</label>
+          <input type="date" value={fum} onChange={e => setFum(e.target.value)} required
+            className="w-full h-12 rounded-2xl border border-clinical-200 px-5 text-sm font-bold outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-clinical-500">Peso inicial (kg)</label>
+            <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} placeholder="Ej: 62.5"
+              className="w-full h-12 rounded-2xl border border-clinical-200 px-5 text-sm font-bold outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10" />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-clinical-500">Talla (cm)</label>
+            <input type="number" step="0.1" value={height} onChange={e => setHeight(e.target.value)} placeholder="Ej: 162"
+              className="w-full h-12 rounded-2xl border border-clinical-200 px-5 text-sm font-bold outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Button variant="ghost" onClick={onCancel} className="flex-1 rounded-2xl">Volver</Button>
+        <Button variant="primary" onClick={() => onSubmit(fum, weight, height)} disabled={!fum || loading} className="flex-1 rounded-2xl shadow-lg">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Baby className="h-4 w-4 mr-2" />}
+          Iniciar Embarazo
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Componente Principal ────────────────────────────────────────────────────
+
+export function ObstetriciaPage() {
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isStartPregnancyOpen, setIsStartPregnancyOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<any | null>(null)
+
+  const { data: pregnancies = [], isLoading } = useActivePregnanciesList()
+  const createPregnancy = useCreatePregnancy()
+
+  const totalActive = pregnancies.length
+  const highRisk = pregnancies.filter(p => p.riskLevel === 'alto' || p.riskLevel === 'muy_alto').length
+  const thirdTrimestre = pregnancies.filter(p => parseFloat(calcularEGActual(p.fum)) >= 27).length
+
+  const handleSelectPatient = async (targetId: string) => {
+    try {
+      // 1. Verificar embarazo activo
+      const res = await fetch(`${API_URL}/patients/${targetId}/pregnancies/active`)
+      if (res.status === 404) {
+        // Sin embarazo activo → obtener detalles de la paciente para el subformulario de inicio
+        const patRes = await fetch(`${API_URL}/patients/${targetId}`)
+        if (patRes.ok) {
+          const patientData = await patRes.json()
+          setSelectedPatient(patientData)
+          setIsStartPregnancyOpen(true)
+        } else {
+          showToast('Error al obtener información de la paciente', 'error')
+        }
+      } else if (res.ok) {
+        const pregnancy = await res.json()
+        // Ya tiene embarazo activo → ir directo al control obstétrico
+        navigate(`/control-obstetrico/${pregnancy.id}`)
+      }
+    } catch {
+      showToast('Error al procesar la selección', 'error')
+    }
   }
-  
-  const theme = colorMap[color as keyof typeof colorMap]
+
+  const handleStartPregnancy = async (fum: string, initialWeight: string, initialHeight: string) => {
+    if (!selectedPatient) return
+    try {
+      const pregnancy = await createPregnancy.mutateAsync({
+        patientId: selectedPatient.id,
+        fum,
+        initialWeight: initialWeight ? parseFloat(initialWeight) : undefined,
+        initialHeight: initialHeight ? parseFloat(initialHeight) : undefined,
+      })
+      showToast('Embarazo iniciado correctamente', 'success')
+      setIsStartPregnancyOpen(false)
+      navigate(`/control-obstetrico/${pregnancy.id}`)
+    } catch (err: any) {
+      showToast(err.message || 'Error al iniciar embarazo', 'error')
+    }
+  }
 
   return (
-    <motion.div 
-      whileHover={{ y: -2, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}
-      className={cn(
-        "p-5 rounded-2xl flex items-center gap-4 cursor-pointer bg-white border border-clinical-100 shadow-sm transition-all h-20 border-l-4",
-        theme.accent
-      )}
-    >
-       <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm", theme.icon)}>
-          {icon}
-       </div>
-       <div className="text-left min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.1em] mb-0.5 truncate text-clinical-400">{label}</p>
-          <p className="text-lg font-black tracking-tight text-clinical-900">{value}</p>
-       </div>
-    </motion.div>
+    <div className="min-h-dvh bg-clinical-50/50">
+      {/* Header */}
+      <div className="bg-white border-b border-clinical-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center shadow-lg">
+              <Baby className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-clinical-900">Control Obstétrico</h1>
+              <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">
+                Monitoreo Prenatal Activo
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setIsSearchOpen(true)} variant="primary" className="h-12 px-6 rounded-2xl shadow-xl shadow-primary-200 font-bold">
+            <Plus className="h-4 w-4 mr-2" /> Nuevo Control
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="bg-clinical-50/30 border-t border-clinical-100 px-10 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-12">
+            <QuickStat icon={<Users className="h-4 w-4 text-primary-500" />} label="Embarazos Activos" value={totalActive} />
+            <div className="w-px h-8 bg-clinical-200" />
+            <QuickStat icon={<AlertTriangle className="h-4 w-4 text-amber-500" />} label="Alto Riesgo" value={highRisk} />
+            <div className="w-px h-8 bg-clinical-200" />
+            <QuickStat icon={<Baby className="h-4 w-4 text-rose-400" />} label="3er Trimestre" value={thirdTrimestre} />
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-32">
+            <Loader2 className="h-10 w-10 animate-spin text-primary-400" />
+          </div>
+        ) : pregnancies.length === 0 ? (
+          <div className="text-center py-32 space-y-4">
+            <div className="h-20 w-20 rounded-3xl bg-primary-50 text-primary-300 flex items-center justify-center mx-auto">
+              <Baby className="h-10 w-10" />
+            </div>
+            <h3 className="text-xl font-black text-clinical-400">Sin embarazos activos</h3>
+            <p className="text-sm text-clinical-400 font-medium max-w-xs mx-auto">
+              Haga clic en "Nuevo Control" para iniciar el seguimiento prenatal de una paciente.
+            </p>
+            <Button onClick={() => setIsSearchOpen(true)} variant="primary" className="mx-auto h-11 px-8 rounded-2xl shadow-lg mt-4">
+              <Plus className="h-4 w-4 mr-2" /> Iniciar primer control
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {pregnancies.map(pregnancy => {
+              const eg = parseFloat(calcularEGActual(pregnancy.fum))
+              const lastControl = pregnancy.controls?.[0]
+              const risk = RISK_CONFIG[pregnancy.riskLevel as RiskLevel] || RISK_CONFIG.sin_riesgo
+              const fppDate = new Date(pregnancy.fpp)
+              const fppStr = fppDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+
+              return (
+                <motion.div
+                  key={pregnancy.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => navigate(`/control-obstetrico/${pregnancy.id}`)}
+                  className="bg-white rounded-3xl border border-clinical-100 p-6 flex items-center justify-between cursor-pointer hover:shadow-xl hover:border-primary-200 transition-all group"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="h-12 w-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center text-lg font-black shadow-lg shrink-0">
+                      {pregnancy.patient.nombres.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-clinical-900 group-hover:text-primary-700 transition-colors">
+                        {pregnancy.patient.nombres} {pregnancy.patient.apellidos}
+                      </h3>
+                      <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">
+                        Doc: {pregnancy.patient.numeroDocumento} • FPP: {fppStr}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-8">
+                    <DataPoint label="E.G. Actual" value={`${eg} sem`} />
+                    <DataPoint label="Trimestre" value={calcularTrimestre(eg)} />
+                    <DataPoint label="Último Control" value={lastControl
+                      ? new Date(lastControl.controlDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                      : 'Sin controles'} />
+                    <DataPoint label="Controles" value={pregnancy._count?.controls ?? 0} />
+                    <span className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shrink-0", risk.color)}>
+                      {risk.label}
+                    </span>
+                    <ChevronRight className="h-5 w-5 text-clinical-300 group-hover:text-primary-500 transition-colors" />
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
+      </main>
+
+      <PatientSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        title="Control Obstétrico"
+        actionLabel="Seleccionar Paciente"
+        onAction={handleSelectPatient}
+      />
+
+      <StartPregnancyModal
+        isOpen={isStartPregnancyOpen}
+        onClose={() => setIsStartPregnancyOpen(false)}
+        patient={selectedPatient}
+        onSubmit={handleStartPregnancy}
+        loading={createPregnancy.isPending}
+      />
+    </div>
   )
 }
 
-function FilterButton({ icon, label }: any) {
+function QuickStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <button className="flex items-center gap-2 px-5 h-12 rounded-2xl bg-white shadow-premium border border-primary-100/50 text-[10px] font-black uppercase tracking-widest text-clinical-600 hover:border-primary-500 hover:text-primary-600 transition-all">
-       {icon} {label}
-    </button>
+    <div className="flex items-center gap-3">
+      <div className="h-9 w-9 rounded-xl bg-white border border-clinical-100 flex items-center justify-center shadow-sm">{icon}</div>
+      <div>
+        <p className="text-[9px] font-black text-clinical-400 uppercase tracking-widest">{label}</p>
+        <p className="text-sm font-black text-clinical-900">{value}</p>
+      </div>
+    </div>
   )
 }
 
-function PregnantPatientRow({ patient, onClick }: { patient: PregnantPatient, onClick: () => void }) {
-  const risk = RISK_COLORS[patient.risk]
-  
+function DataPoint({ label, value }: { label: string; value: string | number }) {
   return (
-    <motion.div 
-      variants={itemVariants}
-      onClick={onClick}
-      className="bg-white p-5 rounded-[2rem] border border-primary-100/30 shadow-premium hover:shadow-xl transition-all cursor-pointer group flex items-center gap-8"
-    >
-       {/* Identity */}
-       <div className="flex items-center gap-5 min-w-[300px]">
-          <div className="h-14 w-14 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center text-xl font-black border border-white shadow-sm transition-transform group-hover:scale-105">
-             {patient.name.charAt(0)}
-          </div>
-          <div>
-             <h4 className="text-lg font-black text-clinical-900 leading-tight group-hover:text-primary-700 transition-colors">{patient.name}</h4>
-             <p className="text-xs font-bold text-clinical-400 mt-1 uppercase tracking-widest">{patient.age} Años • HC-2026-0{patient.id}</p>
-          </div>
-       </div>
-
-       {/* Obstetric Stats */}
-       <div className="flex-1 grid grid-cols-4 gap-8">
-          <StatBox label="Semana Gestacional" value={patient.eg} subValue="Semanas" icon={<TrendingUp className="h-3.5 w-3.5" />} />
-          <StatBox label="Fecha Probable Parto" value={patient.fpp} subValue="Estimado" icon={<Calendar className="h-3.5 w-3.5" />} />
-          <StatBox label="Siguiente Control" value={patient.nextControl} subValue="Confirmado" icon={<Clock className="h-3.5 w-3.5" />} />
-          
-          <div className="flex flex-col justify-center gap-1.5">
-             <p className="text-[9px] font-black text-clinical-400 uppercase tracking-widest">Riesgo Obstétrico</p>
-             <div className={cn("px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest w-fit", risk.bg, risk.text, risk.border)}>
-                {patient.risk}
-             </div>
-          </div>
-       </div>
-
-       {/* Actions Indicator */}
-       <div className="h-12 w-12 rounded-2xl bg-clinical-50 flex items-center justify-center text-clinical-300 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
-          <ChevronRight className="h-6 w-6" />
-       </div>
-    </motion.div>
-  )
-}
-
-function StatBox({ label, value, subValue, icon }: any) {
-  return (
-    <div className="flex flex-col justify-center">
-       <p className="text-[9px] font-black text-clinical-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-          {icon} {label}
-       </p>
-       <p className="text-sm font-black text-clinical-900 leading-none">{value} <span className="text-[10px] text-clinical-400 ml-0.5">{subValue}</span></p>
+    <div className="text-center">
+      <p className="text-[9px] font-black text-clinical-400 uppercase tracking-widest">{label}</p>
+      <p className="text-xs font-black text-clinical-800 mt-0.5">{value}</p>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { OrderType, MedicalOrder } from '../types/order.types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
 
 export const orderService = {
   // Obtener catálogo completo para órdenes
@@ -67,5 +67,10 @@ export const orderService = {
   // Eliminar un resultado específico
   deleteResult: async (orderId: string, resultId: string): Promise<void> => {
     await axios.delete(`${API_URL}/medical-orders/${orderId}/results/${resultId}`);
+  },
+
+  // Eliminar una orden médica completa
+  deleteOrder: async (id: string): Promise<void> => {
+    await axios.delete(`${API_URL}/medical-orders/${id}`);
   }
 };

@@ -422,6 +422,23 @@ export function NewPatientModal({ isOpen, onClose, patient }: NewPatientModalPro
               <Button variant="ghost" onClick={onClose} disabled={isSaving} className="px-6 rounded-2xl text-clinical-400">
                 Cancelar
               </Button>
+              
+              {activeSection === 0 && (
+                <Button 
+                  variant="secondary" 
+                  className="px-6 rounded-2xl border-primary-200 text-primary-700 hover:bg-primary-50/30" 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {isSaving ? 'Guardando...' : patient ? 'Actualizar' : 'Guardar'}
+                </Button>
+              )}
+
               {activeSection === SECTIONS.length - 1 ? (
                 <Button 
                   variant="primary" 

@@ -9,6 +9,7 @@ export const ROUTES = {
   nuevaConsulta: '/consultas/nueva/:id/:num?',
   controlObstetrico: '/control-obstetrico',
   controlObstetricoDetalle: '/control-obstetrico/:id',
+  nuevoControlObstetrico: '/control-obstetrico/nuevo/:patientId',
   recetas: '/recetas',
   ordenes: '/ordenes',
   documentos: '/documentos',

@@ -35,6 +35,7 @@ import { orderService } from '@/modules/orders/services/order.service'
 import type { OrderType, MedicalExam, ExamCategory } from '@/modules/orders/types/order.types'
 import axios from 'axios'
 import { toast } from 'sonner'
+import { API_URL } from '@/shared/api/base'
 
 export const NuevaOrdenPage: React.FC = () => {
   const { patientId, orderId } = useParams<{ patientId?: string, orderId?: string }>()
@@ -90,7 +91,7 @@ export const NuevaOrdenPage: React.FC = () => {
           setSelectedExams(exams)
         } else if (patientId) {
           // New mode: fetch patient details
-          const patientData = await axios.get(`http://localhost:3001/api/patients/${patientId}`).then(res => res.data)
+          const patientData = await axios.get(`${API_URL}/patients/${patientId}`).then(res => res.data)
           setPatient(patientData)
           if (typesData.length > 0 && !initialType) {
             setSelectedType(typesData[0])

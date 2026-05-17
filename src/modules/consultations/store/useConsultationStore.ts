@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import type { Consultation, PatientReference } from '../types/consultation.types';
 
-interface ConsultationState {
+export interface ConsultationState {
   // Estado de la consulta activa
   consultation: Consultation | null;
   patient: PatientReference | null;
   inheritance: any | null;
   loading: boolean;
+  originalConsultation: string | null;
+  saveHandler: ((redirectPath?: string) => Promise<boolean>) | null;
 
   // Acciones
   initConsultation: (data: any) => void;
@@ -24,17 +26,23 @@ export const useConsultationStore = create<ConsultationState>((set) => ({
   patient: null,
   inheritance: null,
   loading: false,
+  originalConsultation: null,
+  saveHandler: null,
 
-  initConsultation: (data) => set({
-    patient: data.patient,
-    inheritance: data.inheritance,
-    consultation: {
+  initConsultation: (data) => {
+    const initial = {
       id: crypto.randomUUID(), // Generar ID para vinculación temprana
       ...data.initialState,
       patientId: data.patient.id,
       doctorId: 'dr-andres-morquecho'
-    }
-  }),
+    };
+    set({
+      patient: data.patient,
+      inheritance: data.inheritance,
+      consultation: initial,
+      originalConsultation: JSON.stringify(initial)
+    });
+  },
 
   updateConsultation: (fields) => set((state) => ({
     consultation: state.consultation ? { ...state.consultation, ...fields } : null
@@ -64,8 +72,9 @@ export const useConsultationStore = create<ConsultationState>((set) => ({
 
   loadConsultation: (data: any) => set({
     patient: data.patient,
-    consultation: data
+    consultation: data,
+    originalConsultation: JSON.stringify(data)
   }),
 
-  reset: () => set({ consultation: null, patient: null, inheritance: null })
+  reset: () => set({ consultation: null, patient: null, inheritance: null, originalConsultation: null })
 }));

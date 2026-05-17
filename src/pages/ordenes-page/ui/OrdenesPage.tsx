@@ -34,6 +34,7 @@ import { orderService } from '@/modules/orders/services/order.service'
 import type { MedicalOrder } from '@/modules/orders/types/order.types'
 import { toast } from 'sonner'
 import { ResultsManagerModal } from './organisms/ResultsManagerModal'
+import { ConfirmModal } from '@/shared/ui/ConfirmModal'
 
 export const OrdenesPage: React.FC = () => {
   const navigate = useNavigate()
@@ -47,8 +48,31 @@ export const OrdenesPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedOrderForUpload, setSelectedOrderForUpload] = useState<MedicalOrder | null>(null)
+  
+  // Estado para la eliminación de órdenes
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const tabs = ['Todos', 'Pendientes', 'Completados', 'Laboratorios', 'Ecografías']
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return
+    
+    try {
+      setIsDeleting(true)
+      await orderService.deleteOrder(orderToDelete)
+      toast.success('Orden médica eliminada exitosamente')
+      setOrders(prev => prev.filter(o => o.id !== orderToDelete))
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      toast.error('No se pudo eliminar la orden médica')
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteModalOpen(false)
+      setOrderToDelete(null)
+    }
+  }
 
   const fetchOrders = async () => {
     try {
@@ -390,11 +414,18 @@ export const OrdenesPage: React.FC = () => {
                               <Eye className="h-4 w-4 mr-2" /> Ver Resultados
                            </span>
                         </Button>
-                      )}
-                      <button className="h-10 w-10 rounded-xl flex items-center justify-center text-clinical-300 hover:bg-clinical-50 hover:text-clinical-900 transition-all">
-                         <MoreHorizontal className="h-5 w-5" />
-                      </button>
-                   </div>
+                       )}
+                        <Button 
+                          onClick={() => {
+                            setOrderToDelete(order.id)
+                            setIsDeleteModalOpen(true)
+                          }}
+                          variant="secondary" 
+                          className="h-10 w-10 p-0 rounded-xl border-clinical-100 text-clinical-300 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-100 transition-all"
+                        >
+                           <Trash2 className="h-5 w-5" />
+                        </Button>
+                     </div>
                 </div>
              </motion.div>
            ))}
@@ -476,6 +507,21 @@ export const OrdenesPage: React.FC = () => {
             onUpdate={fetchOrders}
          />
        )}
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false)
+          setOrderToDelete(null)
+        }}
+        onConfirm={handleDeleteOrder}
+        title="Eliminar Orden Médica"
+        message="¿Está seguro que desea eliminar esta orden médica? Esta acción es irreversible y eliminará todos los resultados y archivos asociados a ella de forma permanente."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isDeleting}
+      />
 
     </div>
   )

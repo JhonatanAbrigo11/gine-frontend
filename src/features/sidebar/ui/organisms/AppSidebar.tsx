@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   Users, 
@@ -17,6 +17,9 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/features/login/model/auth-context'
+import { AnimatePresence, motion } from 'framer-motion'
+import { AlertCircle, Save, Trash2 } from 'lucide-react'
+import { useConsultationStore } from '@/modules/consultations/store/useConsultationStore'
 import { useSiteConfig } from '@/features/site-config'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
@@ -41,6 +44,44 @@ export function AppSidebar({
   const { user, logout } = useAuth()
   const { config } = useSiteConfig()
   const [isHovered, setIsHovered] = useState(false)
+
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [showSidebarExitModal, setShowSidebarExitModal] = useState(false)
+  const [pendingPath, setPendingPath] = useState(null)
+
+  const { consultation, originalConsultation, saveHandler } = useConsultationStore()
+  const isDirty = !!(consultation && originalConsultation && JSON.stringify(consultation) !== originalConsultation)
+
+  const handleSaveAndExit = async () => {
+    if (!pendingPath) return
+    if (saveHandler) {
+      const success = await saveHandler(pendingPath)
+      if (success) {
+        setShowSidebarExitModal(false)
+        setPendingPath(null)
+      }
+    } else {
+      useConsultationStore.getState().reset()
+      navigate(pendingPath)
+      setShowSidebarExitModal(false)
+      setPendingPath(null)
+    }
+  }
+
+  const handleDiscardAndExit = () => {
+    setShowSidebarExitModal(false)
+    useConsultationStore.getState().reset()
+    if (pendingPath) {
+      navigate(pendingPath)
+      setPendingPath(null)
+    }
+  }
+
+  const handleCancelExit = () => {
+    setShowSidebarExitModal(false)
+    setPendingPath(null)
+  }
 
   const isControlled = expandedProp !== undefined
   const expanded = isControlled ? expandedProp : isHovered
@@ -161,15 +202,23 @@ export function AppSidebar({
             <NavLink
               key={item.to}
               to={item.to}
-              onClick={onMobileClose}
-              className={({ isActive }) =>
-                cn(
+              onClick={(e) => {
+                onMobileClose?.()
+                if (isDirty) {
+                  e.preventDefault()
+                  setPendingPath(item.to)
+                  setShowSidebarExitModal(true)
+                }
+              }}
+              className={({ isActive }) => {
+                const isItemActive = isActive || (item.to === '/control-obstetrico' && location.pathname.startsWith('/control-obstetrico'))
+                return cn(
                   'group flex items-center gap-4 rounded-2xl p-3.5 text-sm font-bold transition-all duration-200',
-                  isActive
+                  isItemActive
                     ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                     : 'text-clinical-800/60 hover:bg-white hover:text-primary-700 hover:shadow-sm',
                 )
-              }
+              }}
             >
               <span className="shrink-0">{item.icon}</span>
               <div className="flex flex-1 items-center justify-between overflow-hidden">
@@ -218,6 +267,50 @@ export function AppSidebar({
           </div>
         </div>
       </aside>
+
+      {/* Global Exit Confirmation Modal inside Sidebar */}
+      <AnimatePresence>
+         {showSidebarExitModal && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCancelExit} className="absolute inset-0 bg-clinical-900/60 backdrop-blur-md" />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center border border-clinical-100"
+              >
+                 <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <AlertCircle className="h-8 w-8" />
+                 </div>
+                 <h3 className="text-xl font-black text-clinical-900 mb-2">¿Cambios sin Guardar?</h3>
+                 <p className="text-sm font-medium text-clinical-500 mb-8">Hay modificaciones en la consulta clínica que no se han guardado aún. ¿Qué desea hacer antes de salir?</p>
+                 
+                 <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={handleSaveAndExit} 
+                      className="h-13 w-full rounded-2xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary-200 transition-all flex items-center justify-center gap-2"
+                    >
+                       <Save className="h-4 w-4" />
+                       Guardar Cambios y Salir
+                    </button>
+                    
+                    <button 
+                      onClick={handleDiscardAndExit} 
+                      className="h-13 w-full rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50/50 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                       <Trash2 className="h-4 w-4" />
+                       Salir de todos modos (Sin guardar)
+                    </button>
+                    
+                    <button 
+                      onClick={handleCancelExit} 
+                      className="h-11 w-full rounded-2xl bg-clinical-50 text-clinical-450 hover:bg-clinical-100/50 text-xs font-bold uppercase tracking-widest transition-all"
+                    >
+                       Cancelar y Seguir Editando
+                    </button>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+      </AnimatePresence>
     </>
   )
 }

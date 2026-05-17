@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
+import { API_URL } from '@/shared/api/base'
 
 /* ==================================================
    MOCK DATA
@@ -292,7 +293,7 @@ function HistorialClinicoTab({ patient }: { patient: Patient }) {
     const fetchConsultations = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`http://localhost:3001/api/patients/${patient.numeroDocumento || patient.id}/consultations?page=${page}&limit=5`)
+        const response = await fetch(`${API_URL}/patients/${patient.numeroDocumento || patient.id}/consultations?page=${page}&limit=5`)
         const data = await response.json()
         setConsultations(data.data)
         setTotalPages(data.meta.totalPages)
@@ -500,7 +501,7 @@ function DocumentosTab({ patient }: { patient: Patient }) {
     const fetchDocuments = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`http://localhost:3001/api/patients/${patient.numeroDocumento || patient.id}/documents?page=${page}&limit=9`)
+        const response = await fetch(`${API_URL}/patients/${patient.numeroDocumento || patient.id}/documents?page=${page}&limit=9`)
         const data = await response.json()
         setDocuments(data.data || [])
         setTotalPages(data.meta?.totalPages || 1)
@@ -533,13 +534,13 @@ function DocumentosTab({ patient }: { patient: Patient }) {
                       </div>
                       <div className="flex gap-1">
                          <button 
-                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `http://localhost:3001${doc.url}`, '_blank')}
+                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
                             className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all"
                          >
                             <Eye className="h-4 w-4" />
                          </button>
                          <button 
-                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `http://localhost:3001${doc.url}`, '_blank')}
+                            onClick={() => window.open(doc.url.startsWith('http') ? doc.url : `${API_URL.replace('/api', '')}${doc.url}`, '_blank')}
                             className="h-9 w-9 rounded-xl bg-white border border-clinical-100 text-clinical-400 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all"
                          >
                             <Download className="h-4 w-4" />

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:3001/api'
+import { API_URL } from '@/shared/api/base'
 
 export interface Consultation {
   id: string

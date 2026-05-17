@@ -23,6 +23,7 @@ import { cn } from '@/shared/lib/cn'
 import { toast } from 'sonner'
 import { orderService } from '@/modules/orders/services/order.service'
 import type { MedicalOrder } from '@/modules/orders/types/order.types'
+import { API_URL } from '@/shared/api/base'
 
 interface ResultsManagerModalProps {
   isOpen: boolean
@@ -45,7 +46,6 @@ export const ResultsManagerModal: React.FC<ResultsManagerModalProps> = ({
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
   const BASE_URL = API_URL.replace('/api', '')
 
   const handleDelete = async (resultId: string) => {
