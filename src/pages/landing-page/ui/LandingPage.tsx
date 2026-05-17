@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/login/model/auth-context'
 import { motion } from 'framer-motion'
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
@@ -44,10 +44,6 @@ export function LandingPage() {
   const { config } = useSiteConfig()
   const { user } = useAuth()
 
-  if (user) {
-    return <Navigate to={ROUTES.dashboard} replace />
-  }
-
   return (
     <div className="flex min-h-dvh flex-col bg-clinical-50 selection:bg-primary-100 selection:text-primary-900">
       <PageHeader />
@@ -84,10 +80,10 @@ export function LandingPage() {
               
               <motion.div variants={fadeUp} className="flex flex-wrap gap-4">
                 <Link
-                  to={ROUTES.login}
+                  to={user ? ROUTES.dashboard : ROUTES.login}
                   className={composeButtonClassName('primary', 'px-8 h-14 text-base shadow-xl shadow-primary-200 group no-underline')}
                 >
-                  Iniciar sesión
+                  {user ? 'Ir al panel' : 'Iniciar sesión'}
                   <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <a
@@ -201,10 +197,10 @@ export function LandingPage() {
                 {config.ctaDescription}
               </p>
               <Link
-                to={ROUTES.login}
+                to={user ? ROUTES.dashboard : ROUTES.login}
                 className={composeButtonClassName('primary', 'px-10 h-14 text-base bg-white text-primary-900 hover:bg-primary-50 no-underline')}
               >
-                Entrar al panel médico
+                {user ? 'Volver al panel' : 'Entrar al panel médico'}
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Link>
             </div>

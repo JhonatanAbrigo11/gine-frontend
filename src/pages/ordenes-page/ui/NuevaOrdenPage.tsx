@@ -24,6 +24,7 @@ import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
 
 /* ==================================================
    TYPES & MOCK DATA
@@ -47,6 +48,7 @@ const EXAM_CATALOG = {
 }
 
 export const NuevaOrdenPage: React.FC = () => {
+  const { settings } = useBusinessSettings()
   const [exams, setExams] = useState<ExamRequest[]>([])
   const [orderType, setOrderType] = useState<keyof typeof EXAM_CATALOG>('Laboratorio')
   const [showPreview, setShowPreview] = useState(false)
@@ -107,13 +109,13 @@ export const NuevaOrdenPage: React.FC = () => {
       doc.setFontSize(16)
       doc.setTextColor(2, 111, 199)
       doc.setFont('helvetica', 'bold')
-      doc.text(doctor.clinic, 35, 22)
+      doc.text(settings?.clinicName || doctor.clinic, 35, 22)
       
       doc.setFontSize(8)
       doc.setTextColor(100)
       doc.setFont('helvetica', 'normal')
-      doc.text('Ginecología y Obstetricia de Alta Especialidad', 35, 26)
-      doc.text(`Quito, Ecuador • Tel: (02) 2555-000`, 20, 35)
+      doc.text(settings?.reportHeader || 'Ginecología y Obstetricia de Alta Especialidad', 35, 26)
+      doc.text(settings?.address || 'Quito, Ecuador • Tel: (02) 2555-000', 20, 35)
       
       doc.setDrawColor(2, 111, 199)
       doc.setLineWidth(0.5)

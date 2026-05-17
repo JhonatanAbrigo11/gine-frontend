@@ -20,6 +20,7 @@ import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
 
 /* ==================================================
    MOCK DATA & TYPES
@@ -47,6 +48,7 @@ const MOCK_MEDICINES = [
 ]
 
 export const RecetaMedicaPage: React.FC = () => {
+  const { settings } = useBusinessSettings()
   // States
   const [medicines, setMedicines] = useState<PrescribedMedicine[]>([])
   const [showPreview, setShowPreview] = useState(false)
@@ -135,13 +137,13 @@ export const RecetaMedicaPage: React.FC = () => {
         doc.setFontSize(16)
         doc.setTextColor(2, 111, 199)
         doc.setFont('helvetica', 'bold')
-        doc.text(doctor.clinic, x + 15, 21)
+        doc.text(settings?.clinicName || doctor.clinic, x + 15, 21)
         
         doc.setFontSize(7)
         doc.setTextColor(140)
         doc.setFont('helvetica', 'normal')
-        doc.text('Ginecología y Obstetricia de Alta Especialidad', x + 15, 25)
-        doc.text('Quito, Ecuador • Av. Amazonas N34-45 • Tel: (02) 2555-000', x, 34)
+        doc.text(settings?.reportHeader || 'Ginecología y Obstetricia de Alta Especialidad', x + 15, 25)
+        doc.text(settings?.address || 'Quito, Ecuador • Av. Amazonas N34-45 • Tel: (02) 2555-000', x, 34)
 
         // Accent Line
         doc.setDrawColor(2, 111, 199)

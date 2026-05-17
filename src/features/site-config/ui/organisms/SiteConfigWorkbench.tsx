@@ -6,7 +6,6 @@ import { Button, composeButtonClassName } from '@/widgets/button'
 
 import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import { SiteConfigForm } from '@/features/site-config/ui/molecules/SiteConfigForm'
-import { SiteConfigLivePreview } from '@/features/site-config/ui/organisms/SiteConfigLivePreview'
 import { ROUTES } from '@/shared/config/routes'
 
 const containerVariants = {
@@ -81,14 +80,7 @@ export function SiteConfigWorkbench() {
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] xl:items-start">
-          <motion.div variants={itemVariants} className="min-w-0 xl:sticky xl:top-8 xl:self-start">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-clinical-400">
-              Vista previa en vivo
-            </p>
-            <SiteConfigLivePreview />
-          </motion.div>
-
+        <div className="w-full">
           <motion.div variants={itemVariants} className="min-w-0">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-clinical-400">
               Campos

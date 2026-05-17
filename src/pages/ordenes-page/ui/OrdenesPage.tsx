@@ -29,6 +29,7 @@ import { Button } from '@/widgets/button'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { PatientSearchModal } from '@/pages/consultas-page/ui/organisms/PatientSearchModal'
+import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
 
 /* ==================================================
    TYPES & MOCK DATA
@@ -89,6 +90,7 @@ const MOCK_ORDERS: MedicalOrder[] = [
 ]
 
 export const OrdenesPage: React.FC = () => {
+  const { settings } = useBusinessSettings()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<string>('Todos')
   const [searchQuery, setSearchQuery] = useState('')
@@ -139,13 +141,13 @@ export const OrdenesPage: React.FC = () => {
       doc.setFontSize(16)
       doc.setTextColor(2, 111, 199)
       doc.setFont('helvetica', 'bold')
-      doc.text('GineCentro Premium', 35, 22)
+      doc.text(settings?.clinicName || 'GineCentro Premium', 35, 22)
       
       doc.setFontSize(8)
       doc.setTextColor(100)
       doc.setFont('helvetica', 'normal')
-      doc.text('Ginecología y Obstetricia de Alta Especialidad', 35, 26)
-      doc.text(`Quito, Ecuador • Tel: (02) 2555-000`, 20, 35)
+      doc.text(settings?.reportHeader || 'Ginecología y Obstetricia de Alta Especialidad', 35, 26)
+      doc.text(settings?.address || 'Quito, Ecuador • Tel: (02) 2555-000', 20, 35)
       
       doc.setDrawColor(2, 111, 199)
       doc.setLineWidth(0.5)
