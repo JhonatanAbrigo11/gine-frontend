@@ -22,7 +22,7 @@ import { Button } from '@/widgets/button'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { API_URL } from '@/shared/api/base'
 import { useToast } from '@/shared/ui/ToastContext'
@@ -133,7 +133,11 @@ export const RecetaMedicaPage: React.FC = () => {
   const { settings } = useBusinessSettings()
   const { id: patientId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { showToast } = useToast()
+
+  // Derive mode from the URL — /recetas/editar/:id = edit, /recetas/nueva/:id = create
+  const isEditRoute = location.pathname.startsWith('/recetas/editar')
 
   // States
   const [medicines, setMedicines] = useState<PrescribedMedicine[]>([])
@@ -144,31 +148,103 @@ export const RecetaMedicaPage: React.FC = () => {
   const [showBrandName, setShowBrandName] = useState(true)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [prescriptionId, setPrescriptionId] = useState<string | null>(null)
+
   const [patient, setPatient] = useState({
     name: 'Ana García López',
-    id: '1723456789',
+    id: '1723456789',      // Número de cédula (display)
+    patientUUID: '',       // UUID real para BD
     age: '28 Años',
     hc: '2026-001'
   })
 
   React.useEffect(() => {
     if (!patientId) return
-    axios.get(`${API_URL}/patients/${patientId}`)
-      .then(res => {
-        const data = res.data
-        const birthYear = data.fechaNacimiento ? new Date(data.fechaNacimiento).getFullYear() : 1998
-        const currentYear = new Date().getFullYear()
-        setPatient({
-          name: `${data.nombres} ${data.apellidos}`,
-          id: data.numeroDocumento || data.id,
-          age: `${currentYear - birthYear} Años`,
-          hc: `2026-${data.id.substring(0, 3).toUpperCase()}`
-        })
-      })
-      .catch(err => {
-        console.error("Error loading patient details:", err)
-      })
-  }, [patientId])
+
+    const loadData = async () => {
+      if (isEditRoute) {
+        // ── EDIT MODE: patientId is a prescription UUID ──
+        try {
+          const prescriptionRes = await axios.get(`${API_URL}/prescriptions/${patientId}`)
+          const p = prescriptionRes.data
+          if (!p || p.error) {
+            showToast('No se encontró la receta solicitada', 'error')
+            navigate('/recetas')
+            return
+          }
+          setIsEditMode(true)
+          setPrescriptionId(p.id)
+          setMedicines(p.medicines || [])
+          setRecipeData({
+            secuencial: p.secuencial,
+            fecha: p.date,
+            ciudad: p.ciudad || 'Quito',
+            diagnostico: p.diagnostico || '',
+            cie10: p.cie10 || '',
+            vigencia: p.vigencia || '3 días',
+            vigenciaTipo: p.vigenciaTipo || 'Consulta externa',
+            alergias: p.alergias || 'Ninguna conocida'
+          })
+          if (p.doctor && p.doctor.name) {
+            setDoctor(p.doctor)
+          }
+          // Fetch patient details
+          try {
+            const patientRes = await axios.get(`${API_URL}/patients/${p.patientId}`)
+            const data = patientRes.data
+            if (data && !data.error) {
+              const birthYear = data.fechaNacimiento ? new Date(data.fechaNacimiento).getFullYear() : 1998
+              const currentYear = new Date().getFullYear()
+              setPatient({
+                name: `${data.nombres} ${data.apellidos}`,
+                id: data.numeroDocumento || data.id,
+                patientUUID: data.id,
+                age: `${currentYear - birthYear} Años`,
+                hc: `2026-${data.id.substring(0, 3).toUpperCase()}`
+              })
+            }
+          } catch {
+            // Fallback from prescription data
+            setPatient({
+              name: p.patientName,
+              id: p.patientId,
+              patientUUID: p.patientId,
+              age: '—',
+              hc: `2026-${(p.patientId || '').substring(0, 3).toUpperCase()}`
+            })
+          }
+        } catch (err) {
+          console.error('Error loading prescription for edit:', err)
+          showToast('Error al cargar la receta', 'error')
+          navigate('/recetas')
+        }
+      } else {
+        // ── CREATE MODE: patientId is a patient UUID or cedula ──
+        setIsEditMode(false)
+        setPrescriptionId(null)
+        try {
+          const patientRes = await axios.get(`${API_URL}/patients/${patientId}`)
+          const data = patientRes.data
+          if (data && !data.error) {
+            const birthYear = data.fechaNacimiento ? new Date(data.fechaNacimiento).getFullYear() : 1998
+            const currentYear = new Date().getFullYear()
+            setPatient({
+              name: `${data.nombres} ${data.apellidos}`,
+              id: data.numeroDocumento || data.id,
+              patientUUID: data.id,
+              age: `${currentYear - birthYear} Años`,
+              hc: `2026-${data.id.substring(0, 3).toUpperCase()}`
+            })
+          }
+        } catch (err) {
+          console.error('Error loading patient for new prescription:', err)
+        }
+      }
+    }
+
+    loadData()
+  }, [patientId, isEditRoute])
 
   const [doctor, setDoctor] = useState({
     name: 'Dra. Ana García',
@@ -190,7 +266,7 @@ export const RecetaMedicaPage: React.FC = () => {
 
   // Sync settings from backend
   React.useEffect(() => {
-    if (settings) {
+    if (settings && !isEditMode) {
       const rawLogo = settings.recipeLogoUrl
       const hasCustomLogo = rawLogo && rawLogo !== 'null' && rawLogo !== ''
 
@@ -218,7 +294,25 @@ export const RecetaMedicaPage: React.FC = () => {
         setFadedWatermark(null)
       }
     }
-  }, [settings])
+  }, [settings, isEditMode])
+
+  // Fetch next unique secuencial from backend when creating a new prescription
+  React.useEffect(() => {
+    if (isEditMode) return // Edit mode: secuencial already loaded from DB
+    const fetchNextSecuencial = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/prescriptions/next-secuencial`)
+        if (res.data?.secuencial) {
+          setRecipeData(prev => ({ ...prev, secuencial: res.data.secuencial }))
+        }
+      } catch (err) {
+        console.warn('Could not fetch next secuencial, using timestamp fallback:', err)
+        const fallback = `REC-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`
+        setRecipeData(prev => ({ ...prev, secuencial: fallback }))
+      }
+    }
+    fetchNextSecuencial()
+  }, [isEditMode])
 
   // Composing form state
   const [newMed, setNewMed] = useState({
@@ -348,22 +442,43 @@ export const RecetaMedicaPage: React.FC = () => {
     }
 
     try {
-      // 1. Save to backend real database via API
-      await axios.post(`${API_URL}/prescriptions`, {
-        secuencial: recipeData.secuencial,
-        date: recipeData.fecha,
-        patientId: patient.id || patientId,
-        patientName: patient.name,
-        medicinesCount: medicines.length,
-        status: 'Emitida',
-        medicines: medicines,
-        vigencia: recipeData.vigencia,
-        vigenciaTipo: recipeData.vigenciaTipo,
-        diagnostico: recipeData.diagnostico,
-        cie10: recipeData.cie10,
-        alergias: recipeData.alergias,
-        doctor: doctor
-      })
+      if (isEditMode && prescriptionId) {
+        // 1. Update existing prescription in backend real database via API
+        await axios.patch(`${API_URL}/prescriptions/${prescriptionId}`, {
+          secuencial: recipeData.secuencial,
+          date: recipeData.fecha,
+          patientId: patient.patientUUID || patientId, // Always send UUID
+          patientName: patient.name,
+          medicinesCount: medicines.length,
+          status: 'Emitida',
+          medicines: medicines,
+          vigencia: recipeData.vigencia,
+          vigenciaTipo: recipeData.vigenciaTipo,
+          diagnostico: recipeData.diagnostico,
+          cie10: recipeData.cie10,
+          alergias: recipeData.alergias,
+          doctor: doctor
+        })
+        showToast('¡Receta actualizada exitosamente!', 'success')
+      } else {
+        // 1. Save new prescription to backend real database via API
+        await axios.post(`${API_URL}/prescriptions`, {
+          secuencial: recipeData.secuencial,
+          date: recipeData.fecha,
+          patientId: patient.patientUUID || patientId, // Always send UUID
+          patientName: patient.name,
+          medicinesCount: medicines.length,
+          status: 'Emitida',
+          medicines: medicines,
+          vigencia: recipeData.vigencia,
+          vigenciaTipo: recipeData.vigenciaTipo,
+          diagnostico: recipeData.diagnostico,
+          cie10: recipeData.cie10,
+          alergias: recipeData.alergias,
+          doctor: doctor
+        })
+        showToast('¡Receta guardada exitosamente!', 'success')
+      }
 
       // 2. Also save to localStorage as a fallback backup for offline/speed
       const storedKey = `prescriptions_${patient.id || patientId}`
@@ -385,8 +500,6 @@ export const RecetaMedicaPage: React.FC = () => {
 
       existingList.unshift(newRecipe)
       localStorage.setItem(storedKey, JSON.stringify(existingList))
-
-      showToast('¡Receta guardada exitosamente!', 'success')
       
       // 3. Navigate directly to the recipes list page as requested
       navigate('/recetas')
@@ -590,15 +703,6 @@ export const RecetaMedicaPage: React.FC = () => {
               <p className="text-[10px] font-black text-clinical-900 uppercase tracking-widest">{recipeData.ciudad}, {recipeData.fecha}</p>
               <p className="text-[9px] font-bold text-primary-600 uppercase tracking-widest">Estado: Borrador en edición</p>
            </div>
-           
-           <Button 
-             variant="primary" 
-             onClick={handleSaveRecipe}
-             disabled={medicines.length === 0}
-             className="h-10 px-4 rounded-xl text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary-200 hover:bg-primary-700 transition-all disabled:opacity-30 flex items-center gap-2"
-           >
-              <Save className="h-4 w-4" /> Guardar Receta
-           </Button>
         </div>
       </header>
 

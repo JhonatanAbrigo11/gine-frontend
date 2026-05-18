@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/widgets/button'
 
@@ -8,10 +8,8 @@ import {
   CONFIG_NAV_ITEMS,
   getAdjacentSection,
   getSectionIndex,
-  LANDING_SECTIONS,
   type ConfigSectionId,
 } from '@/features/site-config/model/config-nav'
-import { useSiteConfig } from '@/features/site-config/model/site-config-context'
 import {
   useBusinessSettings,
   type BusinessSettings,
@@ -19,7 +17,6 @@ import {
 import { ConfigProgressStepper } from '@/features/site-config/ui/molecules/ConfigProgressStepper'
 import { ConfigSectionHeader } from '@/features/site-config/ui/molecules/ConfigSectionHeader'
 import { SiteConfigForm } from '@/features/site-config/ui/molecules/SiteConfigForm'
-import { SiteConfigPreviewDrawer } from '@/features/site-config/ui/organisms/SiteConfigPreviewDrawer'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,12 +32,10 @@ const itemVariants = {
 }
 
 export function SiteConfigWorkbench() {
-  const { resetConfig, syncing } = useSiteConfig()
   const { settings, updateSettings, loading } = useBusinessSettings()
   const [section, setSection] = useState<ConfigSectionId>(CONFIG_NAV_ITEMS[0].id)
   const [clinicalDraft, setClinicalDraft] = useState<BusinessSettings | null>(null)
   const [saving, setSaving] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
   const baseId = useId()
 
   const stepIndex = getSectionIndex(section)
@@ -62,6 +57,8 @@ export function SiteConfigWorkbench() {
     setSaving(true)
     try {
       await updateSettings(clinicalDraft)
+    } catch {
+      // Ignored for layout
     } finally {
       setSaving(false)
     }
@@ -87,37 +84,11 @@ export function SiteConfigWorkbench() {
               </span>
             </div>
             <h1 className="mb-2 font-display text-4xl font-bold tracking-tight text-clinical-900">
-              Configuración del <span className="text-primary-700">sitio</span>
+              Configuración de la <span className="text-primary-700">Clínica</span>
             </h1>
             <p className="max-w-lg text-sm font-medium text-clinical-800/60">
-              Complete cada paso en orden. Los cambios de la landing se guardan en el servidor
-              {syncing ? ' (guardando…)' : ''}.
+              Configure los datos e identidad de la clínica, los parámetros de facturación, recetas médicas y administración de usuarios.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="primary"
-              className="h-12 gap-2 rounded-2xl px-5 shadow-lg shadow-primary-200"
-              onClick={() => setPreviewOpen(true)}
-            >
-              <Eye className="h-4 w-4" />
-              Vista previa
-            </Button>
-            {LANDING_SECTIONS.has(section) ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-12 rounded-2xl"
-                onClick={() => {
-                  if (confirm('¿Restaurar la landing a valores por defecto?')) {
-                    void resetConfig()
-                  }
-                }}
-              >
-                Restaurar
-              </Button>
-            ) : null}
           </div>
         </motion.header>
 
@@ -163,15 +134,7 @@ export function SiteConfigWorkbench() {
               </span>
 
               {isLastStep ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  className="h-11 gap-1.5 rounded-xl px-4"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <Eye className="h-4 w-4" />
-                  Ver resultado
-                </Button>
+                <div className="w-[100px]" />
               ) : (
                 <Button
                   type="button"
@@ -188,13 +151,7 @@ export function SiteConfigWorkbench() {
           </div>
         </motion.div>
       </motion.div>
-
-      <SiteConfigPreviewDrawer
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        section={section}
-        clinicalDraft={clinicalDraft}
-      />
     </div>
   )
 }
+

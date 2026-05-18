@@ -13,7 +13,7 @@ const STORAGE_KEY = 'ginecare-session'
 
 type AuthContextValue = {
   user: User | null
-  login: (email: string) => void
+  login: (userData: User) => void
   logout: () => void
 }
 
@@ -25,10 +25,7 @@ function readStoredUser(): User | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return null
-    if (!('email' in parsed)) return null
-    const email = (parsed as { email: unknown }).email
-    if (typeof email !== 'string') return null
-    return { email }
+    return parsed as User
   } catch {
     return null
   }
@@ -39,10 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     typeof window === 'undefined' ? null : readStoredUser(),
   )
 
-  const login = useCallback((email: string) => {
-    const next: User = { email: email.trim() }
-    setUser(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  const login = useCallback((userData: User) => {
+    setUser(userData)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData))
   }, [])
 
   const logout = useCallback(() => {

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+
 import {
    ArrowLeft,
    Baby,
@@ -23,7 +24,8 @@ import {
    X,
    Loader2,
    Download,
-   Upload
+   Upload,
+   RotateCw
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
@@ -537,13 +539,18 @@ function HistoriaPrenatalTab({ pregnancy }: { pregnancy: any }) {
       }
    }
 
+   const handleSaveRef = useRef(handleSave)
+   useEffect(() => {
+      handleSaveRef.current = handleSave
+   }, [handleSave])
+
    useEffect(() => {
       const listener = () => {
-         handleSave()
+         handleSaveRef.current()
       }
       window.addEventListener('save-historia-prenatal', listener)
       return () => window.removeEventListener('save-historia-prenatal', listener)
-   }, [handleSave])
+   }, [])
 
    // Group risk factors
    const groups = Array.from(new Set(RISK_FACTORS.map(rf => rf.group)))
@@ -917,6 +924,7 @@ function EstudiosTab({ pregnancyId, patName, egSemanas, patientId }: { pregnancy
    const [loading, setLoading] = useState(true)
    const [selectedOrder, setSelectedOrder] = useState<MedicalOrder | null>(null)
    const [showResultsModal, setShowResultsModal] = useState(false)
+   const [refreshing, setRefreshing] = useState(false)
 
    const fetchData = async () => {
       try {
@@ -927,13 +935,32 @@ function EstudiosTab({ pregnancyId, patName, egSemanas, patientId }: { pregnancy
          ])
          if (docsRes.ok) {
             const data = await docsRes.json()
-            setDocs(data.data || [])
+            const obstetricDocs = (data.data || []).filter(
+               (d: any) => d.consultationType === 'Control Prenatal' || !d.consultationId
+            )
+            setDocs(obstetricDocs)
          }
-         setOrders(ordersRes || [])
+         // Filter out standard gynecology exams (keep Control Prenatal or direct obstetric orders)
+         const obstetricOrders = (ordersRes || []).filter(
+            (o: MedicalOrder) => o.consultationType === 'Control Prenatal' || !o.consultationId
+         )
+         setOrders(obstetricOrders)
       } catch (err) {
          console.error('Error fetching data:', err)
       } finally {
          setLoading(false)
+      }
+   }
+
+   const handleRefresh = async () => {
+      setRefreshing(true)
+      try {
+         await fetchData()
+         showToast('Exámenes y resultados actualizados', 'success')
+      } catch (err) {
+         showToast('Error al actualizar datos', 'error')
+      } finally {
+         setTimeout(() => setRefreshing(false), 500)
       }
    }
 
@@ -983,7 +1010,17 @@ function EstudiosTab({ pregnancyId, patName, egSemanas, patientId }: { pregnancy
                <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><Microscope className="h-5 w-5" /></div>
                   <div>
-                     <h3 className="text-xl font-black text-clinical-900 tracking-tight">Órdenes Médicas y Resultados</h3>
+                     <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-black text-clinical-900 tracking-tight">Órdenes Médicas y Resultados</h3>
+                        <button 
+                           onClick={handleRefresh}
+                           disabled={refreshing || loading}
+                           className="h-8 w-8 rounded-lg bg-clinical-50 border border-clinical-100 flex items-center justify-center text-clinical-400 hover:text-primary-600 hover:bg-primary-50 transition-all cursor-pointer disabled:opacity-50"
+                           title="Refrescar órdenes y resultados"
+                        >
+                           <RotateCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                        </button>
+                     </div>
                      <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest mt-0.5">Gestión de laboratorio e imagenología</p>
                   </div>
                </div>

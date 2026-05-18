@@ -3,13 +3,10 @@ import { toast } from 'sonner'
 import type { ConfigSectionId } from '@/features/site-config/model/config-nav'
 import { isClinicalSection } from '@/features/site-config/model/config-nav'
 import type { BusinessSettings } from '@/features/site-config/model/use-business-settings'
-import { ServicesConfigSection } from '@/features/site-config/ui/molecules/ServicesConfigSection'
-import { BrandSectionEditor } from '@/features/site-config/ui/sections/BrandSectionEditor'
 import { ClinicalBillingSectionEditor } from '@/features/site-config/ui/sections/ClinicalBillingSectionEditor'
 import { ClinicalReportsSectionEditor } from '@/features/site-config/ui/sections/ClinicalReportsSectionEditor'
 import { ClinicalRecipesSectionEditor } from '@/features/site-config/ui/sections/ClinicalRecipesSectionEditor'
-import { CtaSectionEditor } from '@/features/site-config/ui/sections/CtaSectionEditor'
-import { HeroSectionEditor } from '@/features/site-config/ui/sections/HeroSectionEditor'
+import { ClinicalUsersSectionEditor } from '@/features/site-config/ui/sections/ClinicalUsersSectionEditor'
 import { Button } from '@/widgets/button'
 
 type SiteConfigFormProps = {
@@ -31,7 +28,7 @@ export function SiteConfigForm({
   onClinicalChange,
   onSaveClinical,
 }: SiteConfigFormProps) {
-  if (isClinicalSection(section) && section !== 'clinical-recipes' && (clinicalLoading || !clinicalDraft)) {
+  if (isClinicalSection(section) && section !== 'clinical-recipes' && section !== 'clinical-users' && (clinicalLoading || !clinicalDraft)) {
     return (
       <p className="py-16 text-center text-sm font-medium text-clinical-400">
         Cargando configuración…
@@ -41,10 +38,6 @@ export function SiteConfigForm({
 
   return (
     <div className="space-y-6">
-      {section === 'global-brand' && <BrandSectionEditor baseId={baseId} />}
-      {section === 'landing-hero' && <HeroSectionEditor baseId={baseId} />}
-      {section === 'landing-services' && <ServicesConfigSection baseId={baseId} />}
-      {section === 'landing-cta' && <CtaSectionEditor baseId={baseId} />}
       {section === 'clinical-reports' && clinicalDraft && (
         <ClinicalReportsSectionEditor
           baseId={baseId}
@@ -64,8 +57,11 @@ export function SiteConfigForm({
           baseId={baseId}
         />
       )}
+      {section === 'clinical-users' && (
+        <ClinicalUsersSectionEditor />
+      )}
 
-      {isClinicalSection(section) && section !== 'clinical-recipes' && clinicalDraft ? (
+      {isClinicalSection(section) && section !== 'clinical-recipes' && section !== 'clinical-users' && clinicalDraft ? (
         <div className="flex justify-end pt-2">
           <Button
             type="button"
@@ -88,3 +84,4 @@ export function SiteConfigForm({
     </div>
   )
 }
+

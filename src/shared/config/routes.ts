@@ -18,6 +18,7 @@ export const ROUTES = {
   configuracion: '/configuracion',
   configuracionRecetas: '/configuracion/recetas',
   configuracionMedicamentos: '/configuracion/medicamentos',
+  configuracionUsuarios: '/configuracion/usuarios',
   confirmacion: '/confirmacion-cita/:id',
 } as const
 

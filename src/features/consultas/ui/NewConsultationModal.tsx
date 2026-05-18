@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, 
@@ -14,6 +14,7 @@ import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
 import { consultaService } from '@/entities/consulta/api/consulta.service'
 import { useToast } from '@/shared/ui/ToastContext'
+import axios from 'axios'
 
 interface NewConsultationModalProps {
   isOpen: boolean
@@ -32,9 +33,47 @@ export function NewConsultationModal({ isOpen, onClose, patientId, onSuccess }: 
     diagnosis: '',
     pressure: '',
     weight: '',
-    doctor: 'Dra. Ana García', // Por defecto o del auth
+    doctor: '', 
     notes: ''
   })
+  
+  const [doctors, setDoctors] = useState<string[]>([])
+
+  useEffect(() => {
+    if (isOpen) {
+      axios.get('http://127.0.0.1:3001/api/users')
+        .then(res => {
+          const activeUsers = res.data.filter((u: any) => u.status === 'Activo')
+          if (activeUsers.length > 0) {
+            const names = activeUsers.map((u: any) => {
+              if (u.nombres) {
+                const lowerName = u.nombres.toLowerCase()
+                const lowerUser = u.username.toLowerCase()
+                const isFemale = lowerName.startsWith('dra') || lowerName.includes('ana') || lowerName.includes('garcia') || lowerName.includes('sofia') || lowerName.includes('lucy') || lowerUser.includes('dra')
+                const prefix = isFemale ? 'Dra. ' : 'Dr. '
+                if (lowerName.startsWith('dr.') || lowerName.startsWith('dra.')) {
+                  return `${u.nombres} ${u.apellidos || ''}`.trim()
+                }
+                return `${prefix}${u.nombres} ${u.apellidos || ''}`.trim()
+              }
+              return `@${u.username}`
+            })
+            setDoctors(names)
+            setFormData(prev => ({ ...prev, doctor: names[0] }))
+          } else {
+            const defaults = ['Dra. Ana García', 'Dr. Wilson Mora', 'Dra. Sofía Ruiz']
+            setDoctors(defaults)
+            setFormData(prev => ({ ...prev, doctor: defaults[0] }))
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching doctors:', err)
+          const defaults = ['Dra. Ana García', 'Dr. Wilson Mora', 'Dra. Sofía Ruiz']
+          setDoctors(defaults)
+          setFormData(prev => ({ ...prev, doctor: defaults[0] }))
+        })
+    }
+  }, [isOpen])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -152,11 +191,11 @@ export function NewConsultationModal({ isOpen, onClose, patientId, onSuccess }: 
               required
             />
 
-            <InputField 
+            <SelectField 
               label="Médico Tratante" 
               value={formData.doctor} 
               onChange={v => handleInputChange('doctor', v)} 
-              icon={<User className="h-4 w-4" />}
+              options={doctors}
             />
           </main>
 

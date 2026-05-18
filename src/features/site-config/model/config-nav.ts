@@ -1,22 +1,16 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   FileText,
-  ImageIcon,
-  Layers,
-  Megaphone,
   Receipt,
-  Sparkles,
   Pill,
+  Users,
 } from 'lucide-react'
 
 export type ConfigSectionId =
-  | 'global-brand'
-  | 'landing-hero'
-  | 'landing-services'
-  | 'landing-cta'
   | 'clinical-reports'
   | 'clinical-billing'
   | 'clinical-recipes'
+  | 'clinical-users'
 
 export type ConfigNavItem = {
   id: ConfigSectionId
@@ -27,34 +21,6 @@ export type ConfigNavItem = {
 }
 
 export const CONFIG_NAV_ITEMS: ConfigNavItem[] = [
-  {
-    id: 'global-brand',
-    label: 'Marca',
-    title: 'Identidad de marca',
-    description: 'Nombre, eslogan y logo que verán en la landing y el panel.',
-    Icon: Sparkles,
-  },
-  {
-    id: 'landing-hero',
-    label: 'Hero',
-    title: 'Portada principal',
-    description: 'Imagen, títulos y mensaje de bienvenida de la página pública.',
-    Icon: ImageIcon,
-  },
-  {
-    id: 'landing-services',
-    label: 'Servicios',
-    title: 'Servicios ofrecidos',
-    description: 'Tarjetas con imagen, título y descripción de cada servicio.',
-    Icon: Layers,
-  },
-  {
-    id: 'landing-cta',
-    label: 'CTA',
-    title: 'Llamado a la acción',
-    description: 'Bloque final que invita a agendar o contactar.',
-    Icon: Megaphone,
-  },
   {
     id: 'clinical-reports',
     label: 'Informes',
@@ -76,17 +42,19 @@ export const CONFIG_NAV_ITEMS: ConfigNavItem[] = [
     description: 'Encabezado, pie de página, vigencia por defecto y advertencias de la receta.',
     Icon: Pill,
   },
+  {
+    id: 'clinical-users',
+    label: 'Usuarios',
+    title: 'Usuarios del Sistema',
+    description: 'Administración de usuarios: crear, editar, suspender y cambiar contraseñas.',
+    Icon: Users,
+  },
 ]
 
-export const LANDING_SECTIONS = new Set<ConfigSectionId>([
-  'global-brand',
-  'landing-hero',
-  'landing-services',
-  'landing-cta',
-])
+export const LANDING_SECTIONS = new Set<ConfigSectionId>([])
 
 export function isClinicalSection(id: ConfigSectionId) {
-  return id === 'clinical-reports' || id === 'clinical-billing' || id === 'clinical-recipes'
+  return id === 'clinical-reports' || id === 'clinical-billing' || id === 'clinical-recipes' || id === 'clinical-users'
 }
 
 export function getSectionIndex(id: ConfigSectionId): number {
@@ -106,3 +74,4 @@ export function getAdjacentSection(
   const nextIndex = direction === 'next' ? index + 1 : index - 1
   return CONFIG_NAV_ITEMS[nextIndex]?.id ?? null
 }
+

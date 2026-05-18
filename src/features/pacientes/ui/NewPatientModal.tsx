@@ -172,7 +172,7 @@ export function NewPatientModal({ isOpen, onClose, patient }: NewPatientModalPro
       const { edad, ...dataToSave } = formData
       
       // Validación básica
-      if (!formData.nombres || !formData.apellidos || !formData.numeroDocumento || !formData.fechaNacimiento) {
+      if (!formData.nombres || !formData.apellidos || !formData.numeroDocumento) {
         showToast('Por favor complete todos los campos obligatorios (*)', 'warning')
         setIsSaving(false)
         return
@@ -327,7 +327,7 @@ export function NewPatientModal({ isOpen, onClose, patient }: NewPatientModalPro
                       />
                       <InputField label="Número de Documento" value={formData.numeroDocumento} onChange={v => handleInputChange('numeroDocumento', v)} placeholder="00000000" required />
                       
-                      <InputField label="Fecha de Nacimiento" type="date" value={formData.fechaNacimiento} onChange={v => handleInputChange('fechaNacimiento', v)} required />
+                      <InputField label="Fecha de Nacimiento" type="date" value={formData.fechaNacimiento} onChange={v => handleInputChange('fechaNacimiento', v)} />
                       <div className="space-y-2">
                         <label className="block text-xs font-bold uppercase tracking-widest text-clinical-900/60 px-1">Edad</label>
                         <div className="h-12 flex items-center px-5 rounded-2xl bg-clinical-50 border border-clinical-200 text-sm font-bold text-primary-700">

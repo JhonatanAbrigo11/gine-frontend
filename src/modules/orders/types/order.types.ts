@@ -57,6 +57,7 @@ export type MedicalOrder = {
   patientId: string;
   orderTypeId: string;
   consultationId?: string;
+  consultationType?: string | null;
   doctorId: string;
   secuencial: string;
   date: string;

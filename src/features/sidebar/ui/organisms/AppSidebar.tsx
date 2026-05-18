@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,14 +16,15 @@ import {
   ClipboardList,
   FileText,
   Activity,
-  BarChart3
+  BarChart3,
+  Receipt
 } from 'lucide-react'
 
 import { useAuth } from '@/features/login/model/auth-context'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Save, Trash2 } from 'lucide-react'
 import { useConsultationStore } from '@/modules/consultations/store/useConsultationStore'
-import { useSiteConfig } from '@/features/site-config'
+import { useBusinessSettings } from '@/features/site-config'
 import { ROUTES } from '@/shared/config/routes'
 import { cn } from '@/shared/lib/cn'
 import { LogoGlyphSvg } from '@/shared/ui/LogoGlyphSvg'
@@ -42,13 +46,49 @@ export function AppSidebar({
   onMobileClose
 }: AppSidebarProps = {}) {
   const { user, logout } = useAuth()
-  const { config } = useSiteConfig()
+  const { settings } = useBusinessSettings()
   const [isHovered, setIsHovered] = useState(false)
 
   const navigate = useNavigate()
   const location = useLocation()
   const [showSidebarExitModal, setShowSidebarExitModal] = useState(false)
   const [pendingPath, setPendingPath] = useState(null)
+
+  const [pendingAppointmentsCount, setPendingAppointmentsCount] = useState(0)
+  const [pendingExamsCount, setPendingExamsCount] = useState(0)
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local format
+        
+        // Fetch appointments and medical orders concurrently in parallel
+        const [appRes, orderRes] = await Promise.all([
+          axios.get(`${API_URL}/appointments`),
+          axios.get(`${API_URL}/medical-orders`)
+        ])
+
+        const todayPendingApps = appRes.data.filter((app: any) => {
+          return app.date === todayStr && app.status === 'Agendada'
+        })
+        setPendingAppointmentsCount(todayPendingApps.length)
+
+        const pendingExams = orderRes.data.filter((order: any) => {
+          return !order.results || order.results.length === 0
+        })
+        setPendingExamsCount(pendingExams.length)
+      } catch (err) {
+        console.error('Error fetching sidebar alert counts:', err)
+      }
+    }
+
+    fetchCounts()
+    
+    // Refresh every 10 seconds
+    const interval = setInterval(fetchCounts, 10000)
+    
+    return () => clearInterval(interval)
+  }, [location.pathname])
 
   const { consultation, originalConsultation, saveHandler } = useConsultationStore()
   const isDirty = !!(consultation && originalConsultation && JSON.stringify(consultation) !== originalConsultation)
@@ -141,13 +181,19 @@ export function AppSidebar({
     {
       label: 'Recetas',
       to: ROUTES.configuracionRecetas,
-      icon: <Pill className="h-4 w-4" />,
+      icon: <ClipboardList className="h-4 w-4" />,
       isSubItem: true,
     },
     {
       label: 'Medicamentos',
       to: ROUTES.configuracionMedicamentos,
       icon: <Pill className="h-4 w-4" />,
+      isSubItem: true,
+    },
+    {
+      label: 'Usuarios',
+      to: ROUTES.configuracionUsuarios,
+      icon: <Users className="h-4 w-4" />,
       isSubItem: true,
     },
   ]
@@ -183,8 +229,8 @@ export function AppSidebar({
         <div className="flex h-20 items-center overflow-hidden py-4">
           <div className="flex shrink-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-lg shadow-primary-200">
-              {config.logoUrl ? (
-                <img src={config.logoUrl} alt="" className="h-full w-full object-cover rounded-2xl" />
+              {settings?.logoUrl ? (
+                <img src={settings.logoUrl} alt="" className="h-full w-full object-cover rounded-2xl" />
               ) : (
                 <LogoGlyphSvg className="h-7 w-7" />
               )}
@@ -196,10 +242,10 @@ export function AppSidebar({
               )}
             >
               <p className="whitespace-nowrap font-display text-lg font-bold text-clinical-900 tracking-tight">
-                {config.brandName || 'GineCare'}
+                {settings?.clinicName || 'GineCare'}
               </p>
               <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-clinical-800/40">
-                {config.brandTagline || 'V 1.0'}
+                {settings?.recipeDoctorSpecialty || 'Ginecología'}
               </p>
             </div>
           </div>
@@ -246,16 +292,39 @@ export function AppSidebar({
                   )
                 }}
               >
-                <span className="shrink-0">{item.icon}</span>
+                <span className="shrink-0 relative">
+                  {item.icon}
+                  {!expanded && !mobileOpen && (
+                    (item.label === 'Agenda / Citas' && pendingAppointmentsCount > 0) ||
+                    (item.label === 'Órdenes / Exámenes' && pendingExamsCount > 0)
+                  ) && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-450 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </span>
+                  )}
+                </span>
                 <div className="flex flex-1 items-center justify-between overflow-hidden">
-                  <span
-                    className={cn(
-                      'whitespace-nowrap transition-all duration-300',
-                      (expanded || mobileOpen) ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0',
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={cn(
+                        'whitespace-nowrap transition-all duration-300',
+                        (expanded || mobileOpen) ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none w-0',
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    {(expanded || mobileOpen) && item.label === 'Agenda / Citas' && pendingAppointmentsCount > 0 && (
+                      <span className="shrink-0 flex items-center justify-center h-4.5 px-1.5 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-sm ring-1 ring-white/10 animate-pulse">
+                        {pendingAppointmentsCount}
+                      </span>
                     )}
-                  >
-                    {item.label}
-                  </span>
+                    {(expanded || mobileOpen) && item.label === 'Órdenes / Exámenes' && pendingExamsCount > 0 && (
+                      <span className="shrink-0 flex items-center justify-center h-4.5 px-1.5 rounded-full text-[9px] font-black bg-amber-500 text-white shadow-sm ring-1 ring-white/10 animate-pulse">
+                        {pendingExamsCount}
+                      </span>
+                    )}
+                  </div>
                   {(expanded || mobileOpen) && !item.isSubItem && (
                     <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
                   )}
@@ -269,7 +338,7 @@ export function AppSidebar({
         <div className="mt-auto border-t border-clinical-100 py-6">
           <div className="flex items-center gap-3 overflow-hidden rounded-2xl p-2 transition-colors hover:bg-clinical-50">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 text-accent-700 font-bold border border-white">
-              {user?.email?.[0].toUpperCase() || 'U'}
+              {(user?.nombres?.[0] || user?.username?.[0] || 'U').toUpperCase()}
             </div>
             <div
               className={cn(
@@ -278,7 +347,7 @@ export function AppSidebar({
               )}
             >
               <p className="truncate text-sm font-bold text-clinical-900 leading-none mb-1">
-                {user?.email?.split('@')[0] || 'Usuario'}
+                {user?.nombres ? `${user.nombres} ${user.apellidos || ''}`.trim() : `@${user?.username || 'Usuario'}`}
               </p>
               <p className="truncate text-[11px] font-medium text-clinical-800/40">{user?.email || 'email@example.com'}</p>
             </div>

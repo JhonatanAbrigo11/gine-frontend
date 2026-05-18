@@ -28,7 +28,8 @@ import {
   Loader2,
   ClipboardList,
   Droplet,
-  TrendingUp
+  TrendingUp,
+  RotateCw
 } from 'lucide-react'
 import { ResultsManagerModal } from '../../ordenes-page/ui/organisms/ResultsManagerModal'
 import { orderService } from '@/modules/orders/services/order.service'
@@ -354,7 +355,7 @@ export function NuevaConsultaPage() {
                   {activeTab === 'ginecologia' && <GinecologiaTab isPregnant={isPregnant} />}
                   {activeTab === 'diagnostico' && <DiagnosticoTab />}
                   {activeTab === 'plan' && <PlanTab onSave={async () => { await handleSave(); }} />}
-                  {activeTab === 'documentos' && <DocumentosTab onOpenResults={(order) => {
+                  {activeTab === 'documentos' && <DocumentosTab onRefresh={refreshData} onOpenResults={(order) => {
                 setSelectedOrder(order)
                 setShowResultsModal(true)
               }} />}
@@ -837,16 +838,43 @@ function PlanTab({ onSave }: { onSave: () => Promise<void> }) {
   )
 }
 
-function DocumentosTab({ onOpenResults }: { onOpenResults: (order: MedicalOrder) => void }) {
+function DocumentosTab({ onOpenResults, onRefresh }: { onOpenResults: (order: MedicalOrder) => void, onRefresh?: () => Promise<void> }) {
   const { consultation } = useConsultationStore()
+  const [refreshing, setRefreshing] = useState(false)
+  const { showToast } = useToast()
   if (!consultation) return null
 
   const orders = consultation.medicalOrders || []
 
+  const handleRefresh = async () => {
+    if (!onRefresh) return
+    setRefreshing(true)
+    try {
+      await onRefresh()
+      showToast('Órdenes y resultados actualizados', 'success')
+    } catch (e) {
+      showToast('Error al actualizar documentos', 'error')
+    } finally {
+      setTimeout(() => setRefreshing(false), 500)
+    }
+  }
+
   return (
     <div className="space-y-8">
-       <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-black text-clinical-900 tracking-tight">Órdenes Médicas & Resultados</h4>
+       <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+             <h4 className="text-sm font-black text-clinical-900 tracking-tight">Órdenes Médicas & Resultados</h4>
+             {onRefresh && (
+               <button 
+                 onClick={handleRefresh}
+                 disabled={refreshing}
+                 className="h-8 w-8 rounded-lg bg-clinical-50 border border-clinical-100 flex items-center justify-center text-clinical-400 hover:text-primary-600 hover:bg-primary-50 transition-all cursor-pointer disabled:opacity-50"
+                 title="Refrescar Documentos"
+               >
+                  <RotateCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+               </button>
+             )}
+          </div>
           <p className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">{orders.length} documentos encontrados</p>
        </div>
 

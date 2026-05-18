@@ -23,7 +23,11 @@ import {
   MoreHorizontal,
   Plus,
   ChevronRight,
-  Hash
+  Hash,
+  Trash2,
+  ChevronDown,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/widgets/button'
@@ -32,6 +36,7 @@ import axios from 'axios'
 import { jsPDF } from 'jspdf'
 import { useBusinessSettings } from '@/features/site-config/model/use-business-settings'
 import { pregnancyService } from '@/entities/pregnancy/api/pregnancy.service'
+import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal'
 
 /* ==================================================
    MOCK DATA
@@ -83,7 +88,10 @@ export const PacienteDetallePage: React.FC = () => {
   const location = useLocation()
   const { showToast } = useToast()
   
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'historial')
+  const activeTab = location.state?.activeTab || 'historial'
+  const setActiveTab = (tabId: string) => {
+    navigate(location.pathname, { replace: true, state: { ...location.state, activeTab: tabId } })
+  }
   const [patient, setPatient] = useState<Patient | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -104,12 +112,6 @@ export const PacienteDetallePage: React.FC = () => {
   useEffect(() => {
     fetchPatient()
   }, [id])
-
-  useEffect(() => {
-    if (location.state?.activeTab) {
-      setActiveTab(location.state.activeTab)
-    }
-  }, [location.state])
 
   const tabs = [
     { id: 'datos', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
@@ -439,37 +441,45 @@ const generateDefaultWatermarkBase64 = (color: string = '#026fc7', opacity: numb
 
 function RecetasTab({ patient }: { patient: Patient }) {
   const { settings } = useBusinessSettings()
-  const [localPrescriptions, setLocalPrescriptions] = useState<any[]>([])
   const [dbPrescriptions, setDbPrescriptions] = useState<any[]>([])
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`prescriptions_${patient.numeroDocumento || patient.id}`)
-      if (stored) {
-        setLocalPrescriptions(JSON.parse(stored))
-      } else {
-        setLocalPrescriptions([])
-      }
-    } catch (e) {
-      console.error('Error reading prescriptions from localStorage:', e)
-    }
-  }, [patient])
+  // PDF Preview Modal state
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfModalTitle, setPdfModalTitle] = useState('')
+  const [pdfModalSubtitle, setPdfModalSubtitle] = useState('')
 
   useEffect(() => {
     if (!patient?.id) return
-    axios.get(`${API_URL}/prescriptions`, {
-      params: {
-        patientId: patient.id,
-        limit: 100
-      }
+
+    // Fetch by UUID AND by cedula (legacy records may have either as patientId)
+    const fetchByUUID = axios.get(`${API_URL}/prescriptions`, {
+      params: { patientId: patient.id, limit: 100 }
     })
-    .then(res => {
-      const list = res.data?.data || []
-      setDbPrescriptions(list)
-    })
-    .catch(err => {
-      console.error('Error fetching patient prescriptions from API:', err)
-    })
+    const fetchByCedula = patient.numeroDocumento
+      ? axios.get(`${API_URL}/prescriptions`, {
+          params: { patientId: patient.numeroDocumento, limit: 100 }
+        })
+      : Promise.resolve({ data: { data: [] } })
+
+    Promise.all([fetchByUUID, fetchByCedula])
+      .then(([resUUID, resCedula]) => {
+        const byUUID: any[] = resUUID.data?.data || []
+        const byCedula: any[] = resCedula.data?.data || []
+        // Merge and deduplicate by id
+        const seen = new Set<string>()
+        const merged = [...byUUID, ...byCedula].filter(r => {
+          if (seen.has(r.id)) return false
+          seen.add(r.id)
+          return true
+        })
+        // Sort by createdAt desc
+        merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setDbPrescriptions(merged)
+      })
+      .catch(err => {
+        console.error('Error fetching patient prescriptions from API:', err)
+      })
   }, [patient])
 
   const generatePDFForPrescription = (receta: any, shouldDownload: boolean = true) => {
@@ -637,9 +647,13 @@ function RecetasTab({ patient }: { patient: Patient }) {
       if (shouldDownload) {
         doc.save(`Receta_${receta.id}_${patient.apellidos}.pdf`)
       } else {
+        // Open inline PDF preview modal
         const blob = doc.output('blob')
         const blobUrl = URL.createObjectURL(blob)
-        window.open(blobUrl, '_blank')
+        setPdfUrl(blobUrl)
+        setPdfModalTitle(`Previsualización de Receta Profesional — ${receta.secuencial || receta.id}`)
+        setPdfModalSubtitle(`${patient.nombres} ${patient.apellidos} • ${receta.date}`)
+        setShowPdfModal(true)
       }
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -647,14 +661,7 @@ function RecetasTab({ patient }: { patient: Patient }) {
     }
   }
 
-  // Combine DB prescriptions and local storage ones safely, deduplicating by ID
-  const allPrescriptions = [...dbPrescriptions]
-  
-  localPrescriptions.forEach(lp => {
-    if (!allPrescriptions.some(dp => dp.id === lp.id || dp.secuencial === lp.id)) {
-      allPrescriptions.push(lp)
-    }
-  })
+  const allPrescriptions = dbPrescriptions
 
   return (
     <div>
@@ -709,10 +716,25 @@ function RecetasTab({ patient }: { patient: Patient }) {
                        <Eye className="h-5 w-5" />
                     </Button>
                  </div>
-              </div>
+               </div>
            ))}
         </div>
       )}
+
+      {/* PDF Preview Modal */}
+      <PdfPreviewModal
+        isOpen={showPdfModal}
+        onClose={() => { 
+          setShowPdfModal(false)
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl)
+            setPdfUrl(null)
+          }
+        }}
+        pdfUrl={pdfUrl}
+        title={pdfModalTitle}
+        subtitle={pdfModalSubtitle}
+      />
     </div>
   )
 }
@@ -959,56 +981,284 @@ function DocumentosTab({ patient }: { patient: Patient }) {
   )
 }
 
+type AppointmentStatus = 'Agendada' | 'Confirmada' | 'Sala de espera' | 'En consultorio' | 'En atención' | 'Finalizada' | 'Cancelada' | 'No asistió'
+
+const STATUS_CONFIG: Record<AppointmentStatus, { color: string, icon: any }> = {
+  'Agendada': { color: 'text-primary-600', icon: Clock },
+  'Confirmada': { color: 'text-emerald-600', icon: CheckCircle2 },
+  'Sala de espera': { color: 'text-amber-600', icon: AlertCircle },
+  'En consultorio': { color: 'text-purple-600', icon: User },
+  'En atención': { color: 'text-indigo-600', icon: Stethoscope },
+  'Finalizada': { color: 'text-clinical-400', icon: CheckCircle2 },
+  'Cancelada': { color: 'text-rose-600', icon: XCircle },
+  'No asistió': { color: 'text-clinical-400', icon: XCircle },
+}
+
+function StatusDropdown({ currentStatus, onChange }: { currentStatus: AppointmentStatus, onChange: (s: AppointmentStatus) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const status = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['Agendada']
+  const Icon = status.icon
+
+  return (
+    <div className="relative">
+       <button 
+         onClick={() => setIsOpen(!isOpen)}
+         className={cn(
+           "flex items-center gap-2 pl-3 pr-2 h-9 rounded-xl text-[10px] font-black uppercase tracking-tighter ring-1 ring-clinical-100 bg-white hover:ring-primary-300 transition-all min-w-[145px]",
+           status.color
+         )}
+       >
+          <Icon className="h-3.5 w-3.5" />
+          <span className="flex-1 text-left">{currentStatus}</span>
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
+       </button>
+
+       <AnimatePresence>
+          {isOpen && (
+            <>
+               <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+               <motion.div 
+                 initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                 exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                 className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-[180px] bg-white rounded-2xl shadow-2xl border border-clinical-100 p-2 overflow-hidden"
+               >
+                  {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+                    const ItemIcon = config.icon
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          onChange(key as AppointmentStatus)
+                          setIsOpen(false)
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all hover:bg-clinical-50",
+                          key === currentStatus ? config.color : "text-clinical-400"
+                        )}
+                      >
+                         <ItemIcon className={cn("h-4 w-4", key === currentStatus ? config.color : "text-clinical-200")} />
+                         {key}
+                      </button>
+                    )
+                  })}
+               </motion.div>
+            </>
+          )}
+       </AnimatePresence>
+    </div>
+  )
+}
+
 function CitasTab({ patient }: { patient: Patient }) {
-  const CITAS = [
-    { id: 1, fecha: '12 Jun 2026', hora: '10:30', tipo: 'Control Prenatal', doctor: 'Dr. Marco Rivera', estado: 'Programada' },
-    { id: 2, fecha: '15 May 2026', hora: '09:00', tipo: 'Ginecología', doctor: 'Dr. Marco Rivera', estado: 'Completada' },
-    { id: 3, fecha: '20 Abr 2026', hora: '11:15', tipo: 'Control Prenatal', doctor: 'Dr. Marco Rivera', estado: 'Completada' },
-  ]
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null)
+  const [deletingLoading, setDeletingLoading] = useState(false)
+  const { showToast } = useToast()
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`${API_URL}/appointments`)
+      const data = await response.json()
+      
+      // Filter by patient's name matching
+      const patientFullName = `${patient.nombres} ${patient.apellidos}`.toLowerCase().trim()
+      const filtered = data.filter((cita: any) => {
+        const citaName = (cita.patientName || '').toLowerCase().trim()
+        return citaName === patientFullName || 
+          (citaName.includes(patient.nombres.toLowerCase().trim()) && 
+           citaName.includes(patient.apellidos.toLowerCase().trim()))
+      })
+      
+      // Sort descending so the newest/upcoming appointments are at the top
+      const sorted = filtered.sort((a: any, b: any) => {
+        const dateTimeA = new Date(`${a.date}T${a.time || '00:00'}`)
+        const dateTimeB = new Date(`${b.date}T${b.time || '00:00'}`)
+        return dateTimeB.getTime() - dateTimeA.getTime()
+      })
+
+      setAppointments(sorted)
+    } catch (error) {
+      console.error('Error fetching appointments for patient:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (patient?.id) {
+      fetchAppointments()
+    }
+  }, [patient])
+
+  const handleStatusChange = async (id: string, newStatus: AppointmentStatus) => {
+    try {
+      // Optimistic update
+      setAppointments(prev => prev.map(app => 
+        app.id === id ? { ...app, status: newStatus } : app
+      ))
+      
+      await axios.patch(`${API_URL}/appointments/${id}`, {
+        status: newStatus
+      })
+      showToast('Estado de la cita actualizado', 'success')
+    } catch (err: any) {
+      console.error('Error updating status:', err)
+      const errorMsg = err.response?.data?.message || 'Error al actualizar el estado de la cita'
+      showToast(errorMsg, 'error')
+      fetchAppointments() // Rollback on error
+    }
+  }
+
+  const handleDeleteTrigger = (id: string) => {
+    setAppointmentToDelete(id)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!appointmentToDelete) return
+    try {
+      setDeletingLoading(true)
+      await axios.delete(`${API_URL}/appointments/${appointmentToDelete}`)
+      setAppointments(prev => prev.filter(app => app.id !== appointmentToDelete))
+      showToast('Cita eliminada correctamente', 'success')
+      setAppointmentToDelete(null)
+    } catch (err) {
+      console.error('Error deleting appointment:', err)
+      showToast('Error al eliminar la cita', 'error')
+    } finally {
+      setDeletingLoading(false)
+    }
+  }
+
+  // Helper to format Spanish month names
+  const getMonthAndDay = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + 'T12:00:00') // Avoid timezone shifts
+      const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+      return {
+        day: date.getDate(),
+        month: months[date.getMonth()]
+      }
+    } catch {
+      return { day: '??', month: '??' }
+    }
+  }
 
   return (
     <div className="space-y-8">
        <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-clinical-900 tracking-tight">Historial de Citas</h2>
-          <Button variant="primary" className="rounded-xl h-10 px-6 text-xs shadow-lg shadow-primary-200">
-             <Plus className="h-4 w-4 mr-2" /> Agendar Cita
-          </Button>
        </div>
 
-       <div className="grid gap-4">
-          {CITAS.map((cita) => (
-             <div key={cita.id} className="glass-card rounded-[2rem] p-6 border-white flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:shadow-xl transition-all group">
-                <div className="flex items-center gap-6">
-                   <div className={cn(
-                      "h-16 w-16 rounded-2xl flex flex-col items-center justify-center border transition-transform group-hover:scale-105",
-                      cita.estado === 'Programada' ? "bg-primary-50 border-primary-100 text-primary-700" : "bg-clinical-50 border-clinical-100 text-clinical-400"
-                   )}>
-                      <span className="text-[10px] font-black uppercase tracking-tighter">{cita.fecha.split(' ')[1]}</span>
-                      <span className="text-xl font-black leading-none">{cita.fecha.split(' ')[0]}</span>
-                   </div>
-                   <div>
-                      <h3 className="text-base font-bold text-clinical-900 mb-1">{cita.tipo}</h3>
-                      <p className="text-[11px] font-bold text-clinical-500 uppercase tracking-widest flex items-center gap-2">
-                         <Clock className="h-3.5 w-3.5 text-primary-400" /> {cita.hora} • {cita.doctor}
-                      </p>
-                   </div>
-                </div>
+       {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-clinical-100 shadow-premium">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+             <p className="text-clinical-400 font-bold uppercase tracking-widest text-xs">Cargando historial de citas...</p>
+          </div>
+       ) : appointments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-clinical-200">
+             <Calendar className="h-12 w-12 text-clinical-200 mb-4 opacity-40" />
+             <p className="text-clinical-850 font-black uppercase tracking-widest text-sm mb-2">Sin Citas Agendadas</p>
+             <p className="text-clinical-400 font-bold text-xs max-w-sm text-center px-4 leading-relaxed">
+               Esta paciente no registra citas en el sistema de agenda médica.
+             </p>
+          </div>
+       ) : (
+          <div className="grid gap-4">
+             {appointments.map((cita) => {
+                const dateInfo = getMonthAndDay(cita.date)
+                const isUpcoming = cita.status === 'Agendada' || cita.status === 'Confirmada' || cita.status === 'Sala de espera' || cita.status === 'En consultorio'
+                
+                return (
+                   <div key={cita.id} className="glass-card rounded-[2rem] p-6 border-white flex flex-col sm:flex-row sm:items-center justify-between gap-6 hover:shadow-xl transition-all group">
+                      <div className="flex items-center gap-6">
+                         <div className={cn(
+                            "h-16 w-16 rounded-2xl flex flex-col items-center justify-center border transition-transform group-hover:scale-105",
+                            isUpcoming ? "bg-primary-50 border-primary-100 text-primary-700" : "bg-clinical-50 border-clinical-100 text-clinical-400"
+                         )}>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">{dateInfo.month}</span>
+                            <span className="text-xl font-black leading-none">{dateInfo.day}</span>
+                         </div>
+                         <div>
+                            <div className="flex items-center gap-2">
+                               <h3 className="text-base font-bold text-clinical-900">{cita.reason || cita.type || 'Consulta Médica'}</h3>
+                               <span className="px-1.5 py-0.5 rounded bg-primary-50 text-primary-600 text-[8px] font-black uppercase border border-primary-100">{cita.type}</span>
+                            </div>
+                            <p className="text-[11px] font-bold text-clinical-500 uppercase tracking-widest flex items-center gap-2 mt-1">
+                               <Clock className="h-3.5 w-3.5 text-primary-400" /> {cita.time} • {cita.doctorName || 'Dra. Ana García'}
+                            </p>
+                         </div>
+                      </div>
 
-                <div className="flex items-center gap-4">
-                   <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                      cita.estado === 'Programada' ? "bg-primary-50 text-primary-600 border-primary-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                   )}>
-                      {cita.estado}
-                   </span>
-                   <button className="h-10 w-10 rounded-xl bg-clinical-50 text-clinical-400 flex items-center justify-center hover:bg-white hover:text-primary-600 hover:shadow-md transition-all border border-transparent hover:border-clinical-100">
-                      <ChevronRight className="h-5 w-5" />
-                   </button>
-                </div>
-             </div>
-          ))}
-       </div>
+                      <div className="flex items-center gap-4">
+                         <StatusDropdown 
+                           currentStatus={cita.status || 'Agendada'} 
+                           onChange={(newStatus) => handleStatusChange(cita.id, newStatus)} 
+                         />
+                         
+                         <button 
+                           onClick={() => handleDeleteTrigger(cita.id)} 
+                           className="h-9 w-9 flex items-center justify-center rounded-xl text-clinical-400 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 shadow-sm bg-white" 
+                           title="Eliminar Cita"
+                         >
+                            <Trash2 className="h-4 w-4" />
+                         </button>
+                      </div>
+                   </div>
+                )
+             })}
+          </div>
+       )}
+       <ConfirmDeleteModal 
+         isOpen={appointmentToDelete !== null}
+         onClose={() => setAppointmentToDelete(null)}
+         onConfirm={handleDeleteConfirm}
+         loading={deletingLoading}
+       />
     </div>
+  )
+}
+
+function ConfirmDeleteModal({ isOpen, onClose, onConfirm, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, loading?: boolean }) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-clinical-900/40 backdrop-blur-[2px]" />
+           <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white p-6">
+              <div className="flex flex-col items-center text-center space-y-4 py-4">
+                 <div className="h-14 w-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 shadow-sm animate-pulse">
+                    <Trash2 className="h-6 w-6" />
+                 </div>
+                 <div className="space-y-2">
+                    <h3 className="text-lg font-black text-clinical-900 leading-tight">¿Eliminar Cita Médica?</h3>
+                    <p className="text-xs text-clinical-500 font-bold max-w-[280px] leading-relaxed">
+                       ¿Está seguro de que desea eliminar esta cita? Esta acción eliminará el registro de forma permanente de la agenda y de la ficha del paciente.
+                    </p>
+                 </div>
+              </div>
+              <div className="flex items-center gap-3 mt-6">
+                 <button 
+                   onClick={onClose} 
+                   className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-clinical-450 hover:bg-clinical-50 hover:text-clinical-900 transition-all border border-clinical-100"
+                 >
+                    Cancelar
+                 </button>
+                 <button 
+                   onClick={onConfirm}
+                   disabled={loading}
+                   className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-100 transition-all flex items-center justify-center gap-2"
+                 >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Confirmar
+                 </button>
+              </div>
+           </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }
 

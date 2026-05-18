@@ -3,7 +3,12 @@ import type { ReactElement } from 'react'
 
 import { AuthenticatedShellLayout } from '@/app/layouts/AuthenticatedShellLayout'
 import { useAuth } from '@/features/login/model/auth-context'
-import { ConfiguracionPage, ConfiguracionRecetasPage, ConfiguracionMedicamentosPage } from '@/pages/configuracion-page'
+import { 
+  ConfiguracionPage, 
+  ConfiguracionRecetasPage, 
+  ConfiguracionMedicamentosPage,
+  ConfiguracionUsuariosPage
+} from '@/pages/configuracion-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { PacientesPage } from '@/pages/pacientes-page'
 import { PacienteDetallePage } from '@/pages/paciente-detalle-page'
@@ -13,7 +18,6 @@ import { ConsultasPage, NuevaConsultaPage } from '@/pages/consultas-page'
 import { RecetaMedicaPage } from '@/pages/receta-page'
 import { RecetasListPage } from '@/pages/recetas-list-page'
 import { OrdenesPage, NuevaOrdenPage } from '@/pages/ordenes-page'
-import { LandingPage } from '@/pages/landing-page'
 import { LoginPage } from '@/pages/login-page'
 import { ConfirmacionCitaPage } from '@/pages/confirmacion-cita'
 import { ROUTES } from '@/shared/config/routes'
@@ -48,6 +52,7 @@ export function AppRoutes() {
         <Route path="/consultas" element={<ConsultasPage />} />
         
         <Route path="/recetas/nueva/:id" element={<RecetaMedicaPage />} />
+        <Route path="/recetas/editar/:id" element={<RecetaMedicaPage />} />
         <Route path="/recetas" element={<RecetasListPage />} />
         
         <Route path="/ordenes/nueva/:patientId" element={<NuevaOrdenPage />} />
@@ -64,6 +69,7 @@ export function AppRoutes() {
         <Route path={ROUTES.configuracion} element={<ConfiguracionPage />} />
         <Route path={ROUTES.configuracionRecetas} element={<ConfiguracionRecetasPage />} />
         <Route path={ROUTES.configuracionMedicamentos} element={<ConfiguracionMedicamentosPage />} />
+        <Route path={ROUTES.configuracionUsuarios} element={<ConfiguracionUsuariosPage />} />
       </Route>
       
       <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

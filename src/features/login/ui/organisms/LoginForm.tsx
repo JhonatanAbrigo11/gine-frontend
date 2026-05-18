@@ -1,31 +1,52 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { User as UserIcon, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import axios from 'axios'
 
 import { useAuth } from '@/features/login/model/auth-context'
 import { ROUTES } from '@/shared/config/routes'
-import { isProbablyEmail } from '@/shared/lib/validate-email'
 import { Button } from '@/widgets/button'
 
 export function LoginForm() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('dummypwd123') // Prefilled default mock password
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    if (!isProbablyEmail(email)) {
-      setError('Introduce un correo electrónico institucional válido.')
+    if (!username.trim()) {
+      setError('Por favor, introduce tu nombre de usuario.')
+      return
+    }
+    if (!password) {
+      setError('Por favor, introduce tu contraseña.')
       return
     }
 
-    login(email.trim())
-    navigate(ROUTES.dashboard, { replace: true })
+    try {
+      setLoading(true)
+      const res = await axios.post('http://127.0.0.1:3001/api/login', {
+        username: username.trim(),
+        password
+      })
+      login(res.data)
+      navigate(ROUTES.dashboard, { replace: true })
+    } catch (err: any) {
+      console.error('Error al iniciar sesión:', err)
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error)
+      } else {
+        setError('Error de conexión o credenciales incorrectas.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -48,21 +69,21 @@ export function LoginForm() {
       </header>
 
       <div className="space-y-5">
-        {/* CORREO INSTITUCIONAL */}
+        {/* NOMBRE DE USUARIO */}
         <div className="space-y-2">
-          <label htmlFor="login-email" className="block text-[10px] font-black uppercase tracking-widest text-clinical-450 px-1">
-            Correo Institucional
+          <label htmlFor="login-username" className="block text-[10px] font-black uppercase tracking-widest text-clinical-450 px-1">
+            Nombre de Usuario
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-clinical-300">
-              <Mail className="h-4.5 w-4.5" />
+              <UserIcon className="h-4.5 w-4.5" />
             </div>
             <input
-              id="login-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="doctor@gineclinic.com"
+              id="login-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Ej: admin, dr-mora, dra-garcia"
               className="w-full h-13 rounded-2xl border border-clinical-150 bg-white/50 pl-11 pr-5 text-sm font-bold text-clinical-900 shadow-sm outline-none transition placeholder:text-clinical-300 focus:border-primary-400 focus:bg-white focus:ring-4 focus:ring-primary-500/10"
               required
             />
@@ -83,7 +104,7 @@ export function LoginForm() {
             <button
               type="button"
               className="text-[9px] font-black uppercase tracking-wider text-primary-600 hover:text-primary-700 transition"
-              onClick={() => alert("Entorno demo: Ingrese cualquier correo electrónico para acceder sin contraseña.")}
+              onClick={() => alert("Usuarios demo predeterminados:\n- admin (contraseña: dummypwd123)\n- dr-mora (contraseña: dummypwd123)\n- dra-garcia (contraseña: dummypwd123)")}
             >
               ¿Olvidó su contraseña?
             </button>
@@ -112,13 +133,15 @@ export function LoginForm() {
         </div>
 
         <p className="text-[10px] text-clinical-400/80 font-bold italic px-1">
-          * Demo: ingrese cualquier correo electrónico para continuar.
+          * Demo: ingrese admin, dr-mora o dra-garcia (Contraseña: dummypwd123).
         </p>
       </div>
 
-      <Button type="submit" className="w-full h-13 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 mt-2" variant="primary">
+      <Button type="submit" disabled={loading} className="w-full h-13 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 mt-2 flex items-center justify-center gap-2" variant="primary">
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         Entrar al Sistema
       </Button>
     </form>
   )
 }
+

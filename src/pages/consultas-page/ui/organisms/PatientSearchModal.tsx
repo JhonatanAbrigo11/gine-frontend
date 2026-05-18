@@ -80,11 +80,33 @@ export function PatientSearchModal({
     patients.find(p => p.id === selectedId)
     , [selectedId, patients])
 
+  const [selectedPatientFull, setSelectedPatientFull] = useState<Patient | null>(null)
+  const [loadingFull, setLoadingFull] = useState(false)
+
+  useEffect(() => {
+    if (!selectedId) {
+      setSelectedPatientFull(null)
+      return
+    }
+    const fetchFullPatient = async () => {
+      try {
+        setLoadingFull(true)
+        const fullPatient = await pacienteService.getById(selectedId)
+        setSelectedPatientFull(fullPatient)
+      } catch (err) {
+        console.error("Error loading full patient details:", err)
+      } finally {
+        setLoadingFull(false)
+      }
+    }
+    fetchFullPatient()
+  }, [selectedId])
+
   // Extraer datos de la última consulta para el resumen
   const lastConsultation = useMemo(() => {
-    if (!selectedPatient?.consultations || selectedPatient.consultations.length === 0) return null
-    return selectedPatient.consultations[0] // Ya vienen ordenadas por desc en el backend
-  }, [selectedPatient])
+    if (!selectedPatientFull?.consultations || selectedPatientFull.consultations.length === 0) return null
+    return selectedPatientFull.consultations[0] // Ya vienen ordenadas por desc en el backend
+  }, [selectedPatientFull])
 
   const handleAction = () => {
     if (selectedPatient) {
@@ -239,13 +261,19 @@ export function PatientSearchModal({
                       </div>
 
                       {/* Grid Compact */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <SummaryCard icon={<AlertCircle className="h-4 w-4 text-rose-500" />} label="Alergias" value={selectedPatient.alergias || 'Ninguna'} danger={!!selectedPatient.alergias} />
-                        <SummaryCard icon={<Stethoscope className="h-4 w-4 text-primary-500" />} label="Último Diag." value={lastConsultation?.diagnosis || 'Sin historial'} />
+                      <div className="grid grid-cols-2 gap-3 relative">
+                        {loadingFull && (
+                          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center rounded-2xl z-10">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mr-2"></div>
+                            <span className="text-[10px] font-bold text-clinical-500 uppercase tracking-widest">Actualizando historial...</span>
+                          </div>
+                        )}
+                        <SummaryCard icon={<AlertCircle className="h-4 w-4 text-rose-500" />} label="Alergias" value={selectedPatientFull?.alergias || selectedPatient.alergias || 'Ninguna'} danger={!!(selectedPatientFull?.alergias || selectedPatient.alergias)} />
+                        <SummaryCard icon={<Stethoscope className="h-4 w-4 text-primary-500" />} label="Último Diag." value={lastConsultation?.diagnoses?.[0]?.description || lastConsultation?.reason || 'Sin historial'} />
                         <SummaryCard icon={<Calendar className="h-4 w-4 text-amber-500" />} label="Última Consulta" value={lastConsultation?.date ? new Date(lastConsultation.date).toLocaleDateString() : 'Nunca'} />
-                        <SummaryCard icon={<Activity className="h-4 w-4 text-emerald-500" />} label="Presión Art." value={lastConsultation?.pressure || '—'} />
-                        <SummaryCard icon={<Weight className="h-4 w-4 text-primary-500" />} label="Último Peso" value={lastConsultation?.weight ? `${lastConsultation.weight} kg` : '—'} />
-                        <SummaryCard icon={<FileText className="h-4 w-4 text-indigo-500" />} label="Tipo Sangre" value={selectedPatient.tipoSanguineo || '—'} />
+                        <SummaryCard icon={<Activity className="h-4 w-4 text-emerald-500" />} label="Presión Art." value={lastConsultation?.vitalSigns?.pressure || '—'} />
+                        <SummaryCard icon={<Weight className="h-4 w-4 text-primary-500" />} label="Último Peso" value={lastConsultation?.vitalSigns?.weight ? `${lastConsultation.vitalSigns.weight} kg` : '—'} />
+                        <SummaryCard icon={<FileText className="h-4 w-4 text-indigo-500" />} label="Tipo Sangre" value={selectedPatientFull?.tipoSanguineo || selectedPatient.tipoSanguineo || '—'} />
                       </div>
 
                       {/* Additional Quick Info */}
@@ -253,7 +281,7 @@ export function PatientSearchModal({
                         <div className="flex items-center gap-2">
                           <Droplet className="h-4 w-4 text-rose-500" />
                           <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">Tipo Sangre:</span>
-                          <span className="text-xs font-bold text-clinical-900">{selectedPatient.tipoSanguineo || '—'}</span>
+                          <span className="text-xs font-bold text-clinical-900">{selectedPatientFull?.tipoSanguineo || selectedPatient.tipoSanguineo || '—'}</span>
                         </div>
                         <div className="flex items-center gap-2 border-l border-clinical-200 pl-4">
                           <User className="h-4 w-4 text-primary-500" />
